@@ -11,7 +11,7 @@
   "author": "Serverless, Inc.",
   "license": "MIT",
   "dependencies": {
-    "@serverless/components": "^0.0.1",
+    "@serverless/components": "^0.0.5",
     "fs-extra": "^7.0.1",
     "aws-sdk": "^2.387.0",
     "ramda": "^0.26.1"
