@@ -21,7 +21,8 @@ const createLambda = async ({
   description,
   zipPath,
   bucket,
-  role
+  role,
+  layer
 }) => {
   const params = {
     FunctionName: name,
@@ -36,6 +37,10 @@ const createLambda = async ({
     Environment: {
       Variables: env
     }
+  }
+
+  if (layer && layer.arn) {
+    params.Layers = [layer.arn]
   }
 
   if (bucket) {
@@ -61,7 +66,8 @@ const updateLambda = async ({
   description,
   zipPath,
   bucket,
-  role
+  role,
+  layer
 }) => {
   const functionCodeParams = {
     FunctionName: name,
@@ -86,6 +92,10 @@ const updateLambda = async ({
     Environment: {
       Variables: env
     }
+  }
+
+  if (layer && layer.arn) {
+    functionConfigParams.Layers = [layer.arn]
   }
 
   await lambda.updateFunctionCode(functionCodeParams).promise()
@@ -161,10 +171,17 @@ const configChanged = (pervLambda, lambda) => {
   return not(equals(inputs, prevInputs))
 }
 
-const pack = async (code, shims = []) => {
+const pack = async (code, shims = [], packDeps = true) => {
   if (isArchivePath(code)) {
     return path.resolve(code)
   }
+
+  let exclude = []
+
+  if (!packDeps) {
+    exclude = ['node_modules/**']
+  }
+
   const outputFilePath = path.join(
     tmpdir(),
     `${Math.random()
@@ -172,7 +189,7 @@ const pack = async (code, shims = []) => {
       .substring(6)}.zip`
   )
 
-  return packDir(code, outputFilePath, shims)
+  return packDir(code, outputFilePath, shims, exclude)
 }
 
 module.exports = {

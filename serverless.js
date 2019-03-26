@@ -1,3 +1,4 @@
+const path = require('path')
 const aws = require('aws-sdk')
 const { mergeDeepRight, pick } = require('ramda')
 const { Component, hashFile } = require('@serverless/components')
@@ -10,7 +11,7 @@ const {
   pack
 } = require('./utils')
 
-const outputMask = [
+const outputsList = [
   'name',
   'description',
   'memory',
@@ -22,16 +23,17 @@ const outputMask = [
   'runtime',
   'env',
   'role',
+  'layer',
   'arn'
 ]
 
 const defaults = {
-  name: 'serverless',
+  name: 'serverless-layered',
   description: 'AWS Lambda Component',
   memory: 512,
   timeout: 10,
   code: process.cwd(),
-  bucket: null,
+  bucket: undefined,
   shims: [],
   handler: 'handler.hello',
   runtime: 'nodejs8.10',
@@ -54,15 +56,34 @@ class AwsLambda extends Component {
 
     config.role = config.role || (await awsIamRole(config))
 
-    this.cli.status(`Packaging`)
+    if (config.bucket && config.runtime === 'nodejs8.10') {
+      const layer = await this.load('@serverless/aws-lambda-layer')
 
-    config.zipPath = await pack(config.code, config.shims)
+      const layerInputs = {
+        name: `${config.name}-dependencies`,
+        description: `${config.name} Dependencies Layer`,
+        code: path.join(config.code, 'node_modules'),
+        runtimes: ['nodejs8.10'],
+        prefix: 'nodejs/node_modules',
+        bucket: config.bucket,
+        region: config.region
+      }
+
+      this.cli.status('Deploying Dependencies')
+      const promises = [pack(config.code, config.shims, false), layer(layerInputs)]
+      const res = await Promise.all(promises)
+      config.zipPath = res[0]
+      config.layer = res[1]
+    } else {
+      this.cli.status('Packaging')
+      config.zipPath = await pack(config.code, config.shims)
+    }
+
     config.hash = await hashFile(config.zipPath)
 
     let deploymentBucket
     if (config.bucket) {
       deploymentBucket = await this.load('@serverless/aws-s3')
-      await deploymentBucket({ name: config.bucket })
     }
 
     const prevLambda = await getLambda({ lambda, ...config })
@@ -70,7 +91,7 @@ class AwsLambda extends Component {
     if (!prevLambda) {
       if (config.bucket) {
         this.cli.status(`Uploading`)
-        await deploymentBucket.upload({ file: config.zipPath })
+        await deploymentBucket.upload({ name: config.bucket, file: config.zipPath })
       }
 
       this.cli.status(`Creating`)
@@ -78,9 +99,9 @@ class AwsLambda extends Component {
     } else {
       config.arn = prevLambda.arn
       if (configChanged(prevLambda, config)) {
-        if (config.bucket) {
+        if (config.bucket && prevLambda.hash !== config.hash) {
           this.cli.status(`Uploading`)
-          await deploymentBucket.upload({ file: config.zipPath })
+          await deploymentBucket.upload({ name: config.bucket, file: config.zipPath })
         }
 
         this.cli.status(`Updating`)
@@ -97,7 +118,7 @@ class AwsLambda extends Component {
     this.state.arn = config.arn
     await this.save()
 
-    const outputs = pick(outputMask, config)
+    const outputs = pick(outputsList, config)
     this.cli.outputs(outputs)
     return outputs
   }
@@ -105,6 +126,7 @@ class AwsLambda extends Component {
   async remove(inputs = {}) {
     const config = mergeDeepRight(defaults, inputs)
     config.name = inputs.name || this.state.name || defaults.name
+
     const lambda = new aws.Lambda({
       region: config.region,
       credentials: this.context.credentials.aws
@@ -113,12 +135,12 @@ class AwsLambda extends Component {
     this.cli.status(`Removing`)
 
     const awsIamRole = await this.load('@serverless/aws-iam-role')
-    const deploymentBucket = await this.load('@serverless/aws-s3')
+    const layer = await this.load('@serverless/aws-lambda-layer')
 
     // there's no need to pass names as input
     // since it's saved in the child component state
     await awsIamRole.remove()
-    await deploymentBucket.remove()
+    await layer.remove()
 
     await deleteLambda({ lambda, name: config.name })
 
