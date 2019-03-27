@@ -28,7 +28,7 @@ const outputsList = [
 ]
 
 const defaults = {
-  name: 'serverless-layered',
+  name: 'serverless',
   description: 'AWS Lambda Component',
   memory: 512,
   timeout: 10,
