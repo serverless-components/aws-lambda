@@ -1,6 +1,6 @@
 {
   "name": "@serverless/aws-lambda",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "main": "./serverless.js",
   "publishConfig": {
     "access": "public"
@@ -13,10 +13,10 @@
   "license": "MIT",
   "dependencies": {
     "@serverless/aws-iam-role": "^0.1.0",
-    "@serverless/aws-s3": "^0.1.0",
     "@serverless/aws-lambda-layer": "^0.1.0",
+    "@serverless/aws-s3": "^0.1.0",
     "@serverless/components": "^0.1.0",
-    "aws-sdk": "^2.424.0",
+    "aws-sdk": "^2.428.0",
     "fs-extra": "^7.0.0",
     "ramda": "^0.26.0"
   },
