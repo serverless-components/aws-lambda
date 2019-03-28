@@ -1,7 +1,7 @@
 const path = require('path')
 const aws = require('aws-sdk')
 const { mergeDeepRight, pick } = require('ramda')
-const { Component, hashFile } = require('@serverless/components')
+const { Component, hashFile, dirExists } = require('@serverless/components')
 const {
   createLambda,
   updateLambda,
@@ -56,7 +56,11 @@ class AwsLambda extends Component {
 
     config.role = config.role || (await awsIamRole(config))
 
-    if (config.bucket && config.runtime === 'nodejs8.10') {
+    if (
+      config.bucket &&
+      config.runtime === 'nodejs8.10' &&
+      (await dirExists(path.join(config.code, 'node_modules')))
+    ) {
       const layer = await this.load('@serverless/aws-lambda-layer')
 
       const layerInputs = {
