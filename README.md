@@ -1,3 +1,4 @@
+# AWS Lambda
 
 Deploy Lambda functions to AWS in seconds with [Serverless Components](https://github.com/serverless/components). Utilizes layers for dependency management and S3 accelerated uploads for maximum upload speeds.
 
