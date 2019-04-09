@@ -105,6 +105,7 @@ AwsLambda (master)$
 
 ```
 For a real world example of how this component could be used, [take a look at how the Socket component is using it](https://github.com/serverless-components/socket).
+
 &nbsp;
 
 ### New to Components?
