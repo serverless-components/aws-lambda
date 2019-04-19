@@ -109,7 +109,7 @@ aws-lambda (master)$ components
   arn:  'arn:aws:lambda:us-east-1:552760238299:function:serverless'
 
 
-  22s › dev › AwsLambda › done
+  22s › dev › my-function › done
 
 aws-lambda (master)$
 
