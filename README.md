@@ -1,4 +1,4 @@
-# AWS Lambda
+# aws-lambda
 
 Deploy Lambda functions to AWS in seconds with [Serverless Components](https://github.com/serverless/components). Utilizes layers for dependency management and S3 accelerated uploads for maximum upload speeds.
 
@@ -87,7 +87,7 @@ myFunction:
 ### 4. Deploy
 
 ```console
-AwsLambda (master)$ components
+aws-lambda (master)$ components
 
   AwsLambda › outputs:
   name:  'my-function'
@@ -111,10 +111,10 @@ AwsLambda (master)$ components
 
   22s › dev › AwsLambda › done
 
-AwsLambda (master)$
+aws-lambda (master)$
 
 ```
-For a real world example of how this component could be used, [take a look at how the Socket component is using it](https://github.com/serverless-components/socket).
+For a real world example of how this component could be used, [take a look at how the socket component is using it](https://github.com/serverless-components/socket).
 
 &nbsp;
 
