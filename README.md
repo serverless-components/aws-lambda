@@ -77,7 +77,7 @@ myFunction:
 
     # if you'd like to include any shims
     shims:
-      - ../shims/shim.js 
+      - ../shims/shim.js
 
     # specifying an existing deployment bucket would optimise deployment speed
     # by using accelerated multipart uploads and dependency management with layers
@@ -99,9 +99,9 @@ aws-lambda (master)$ components
   shims:  []
   handler:  'handler.hello'
   runtime:  'nodejs8.10'
-  env: 
+  env:
     TABLE_NAME: my-table
-  role: 
+  role:
     name:  'serverless'
     arn:  'arn:aws:iam::552760238299:role/serverless'
     service:  'lambda.amazonaws.com'
@@ -117,6 +117,63 @@ aws-lambda (master)$
 For a real world example of how this component could be used, [take a look at how the socket component is using it](https://github.com/serverless-components/socket).
 
 &nbsp;
+
+### Suggested Policy
+
+We recommend you to create an user for your application with following policies:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "lambda:CreateFunction",
+                "iam:UpdateAssumeRolePolicy",
+                "s3:CreateBucket",
+                "iam:CreateRole",
+                "lambda:GetFunctionConfiguration",
+                "iam:AttachRolePolicy",
+                "iam:PutRolePolicy",
+                "s3:GetBucketPolicy",
+                "s3:GetObjectAcl",
+                "iam:PassRole",
+                "logs:CreateLogStream",
+                "s3:DeleteBucketWebsite",
+                "iam:DetachRolePolicy",
+                "iam:DeleteRolePolicy",
+                "lambda:DeleteLayerVersion",
+                "s3:PutBucketAcl",
+                "lambda:DeleteFunction",
+                "s3:DeleteObject",
+                "iam:DetachUserPolicy",
+                "s3:DeleteBucket",
+                "s3:PutObjectAcl",
+                "iam:GetRole",
+                "lambda:UpdateFunctionConfiguration",
+                "iam:AttachUserPolicy",
+                "iam:DeleteRole",
+                "lambda:AddLayerVersionPermission",
+                "s3:PutBucketCORS",
+                "s3:GetBucketAcl",
+                "s3:DeleteBucketPolicy",
+                "logs:PutLogEvents",
+                "lambda:UpdateFunctionCode",
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:PutBucketWebsite",
+                "iam:PutUserPolicy",
+                "s3:GetBucketCORS",
+                "s3:PutBucketPolicy",
+                "lambda:PublishVersion"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
 
 ### New to Components?
 
