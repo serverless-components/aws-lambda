@@ -163,11 +163,11 @@ const getPolicy = async ({ name, region, accountId }) => {
   }
 }
 
-const configChanged = (pervLambda, lambda) => {
+const configChanged = (prevLambda, lambda) => {
   const keys = ['description', 'runtime', 'role', 'handler', 'memory', 'timeout', 'env', 'hash']
   const inputs = pick(keys, lambda)
   inputs.role = { arn: inputs.role.arn } // remove other inputs.role component outputs
-  const prevInputs = pick(keys, pervLambda)
+  const prevInputs = pick(keys, prevLambda)
   return not(equals(inputs, prevInputs))
 }
 
