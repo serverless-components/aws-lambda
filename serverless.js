@@ -1,5 +1,6 @@
 const path = require('path')
 const aws = require('aws-sdk')
+const AwsSdkLambda = aws.Lambda;
 const { mergeDeepRight, pick } = require('ramda')
 const { Component, hashFile, dirExists } = require('@serverless/components')
 const {
@@ -47,7 +48,7 @@ class AwsLambda extends Component {
 
     this.cli.status(`Deploying`)
 
-    const lambda = new aws.Lambda({
+    const lambda = new AwsSdkLambda({
       region: config.region,
       credentials: this.context.credentials.aws
     })
@@ -61,7 +62,7 @@ class AwsLambda extends Component {
         name: config.name,
         service: 'lambda.amazonaws.com',
         policy: {
-          arn: 'arn:aws:iam::aws:policy/AdministratorAccess',
+          arn: 'arn:aws:iam::aws:policy/AdministratorAccess'
         }
       })
       config.role = { arn: outputsAwsIamRole.arn }
@@ -145,7 +146,7 @@ class AwsLambda extends Component {
     const config = mergeDeepRight(defaults, inputs)
     config.name = inputs.name || this.state.name || defaults.name
 
-    const lambda = new aws.Lambda({
+    const lambda = new AwsSdkLambda({
       region: config.region,
       credentials: this.context.credentials.aws
     })
