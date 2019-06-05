@@ -2,7 +2,7 @@ const { tmpdir } = require('os')
 const path = require('path')
 const { readFile } = require('fs-extra')
 const { equals, not, pick } = require('ramda')
-const { packDir, isArchivePath } = require('@serverless/components')
+const { utils } = require('@serverless/components')
 
 const getAccountId = async (aws) => {
   const STS = new aws.STS()
@@ -172,7 +172,7 @@ const configChanged = (prevLambda, lambda) => {
 }
 
 const pack = async (code, shims = [], packDeps = true) => {
-  if (isArchivePath(code)) {
+  if (utils.isArchivePath(code)) {
     return path.resolve(code)
   }
 
@@ -189,7 +189,7 @@ const pack = async (code, shims = [], packDeps = true) => {
       .substring(6)}.zip`
   )
 
-  return packDir(code, outputFilePath, shims, exclude)
+  return utils.packDir(code, outputFilePath, shims, exclude)
 }
 
 module.exports = {
