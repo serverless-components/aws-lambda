@@ -2,7 +2,7 @@ const { tmpdir } = require('os')
 const path = require('path')
 const { readFile } = require('fs-extra')
 const { equals, not, pick } = require('ramda')
-const { utils } = require('@serverless/components')
+const { utils } = require('@serverless/core')
 
 const getAccountId = async (aws) => {
   const STS = new aws.STS()

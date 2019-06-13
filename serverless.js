@@ -1,8 +1,8 @@
 const path = require('path')
 const aws = require('aws-sdk')
-const AwsSdkLambda = aws.Lambda;
+const AwsSdkLambda = aws.Lambda
 const { mergeDeepRight, pick } = require('ramda')
-const { Component, utils } = require('@serverless/components')
+const { Component, utils } = require('@serverless/core')
 const {
   createLambda,
   updateLambda,
@@ -46,7 +46,7 @@ class AwsLambda extends Component {
   async default(inputs = {}) {
     const config = mergeDeepRight(defaults, inputs)
 
-    this.ui.status(`Deploying`)
+    this.context.status(`Deploying`)
 
     const lambda = new AwsSdkLambda({
       region: config.region,
@@ -88,13 +88,13 @@ class AwsLambda extends Component {
         region: config.region
       }
 
-      this.ui.status('Deploying Dependencies')
+      this.context.status('Deploying Dependencies')
       const promises = [pack(config.code, config.shims, false), layer(layerInputs)]
       const res = await Promise.all(promises)
       config.zipPath = res[0]
       config.layer = res[1]
     } else {
-      this.ui.status('Packaging')
+      this.context.status('Packaging')
       config.zipPath = await pack(config.code, config.shims)
     }
 
@@ -109,27 +109,27 @@ class AwsLambda extends Component {
 
     if (!prevLambda) {
       if (config.bucket) {
-        this.ui.status(`Uploading`)
+        this.context.status(`Uploading`)
         await deploymentBucket.upload({ name: config.bucket, file: config.zipPath })
       }
 
-      this.ui.status(`Creating`)
+      this.context.status(`Creating`)
       config.arn = await createLambda({ lambda, ...config })
     } else {
       config.arn = prevLambda.arn
       if (configChanged(prevLambda, config)) {
         if (config.bucket && prevLambda.hash !== config.hash) {
-          this.ui.status(`Uploading`)
+          this.context.status(`Uploading`)
           await deploymentBucket.upload({ name: config.bucket, file: config.zipPath })
         }
 
-        this.ui.status(`Updating`)
+        this.context.status(`Updating`)
         await updateLambda({ lambda, ...config })
       }
     }
 
     if (this.state.name && this.state.name !== config.name) {
-      this.ui.status(`Replacing`)
+      this.context.status(`Replacing`)
       await deleteLambda({ lambda, name: this.state.name })
     }
 
@@ -139,12 +139,12 @@ class AwsLambda extends Component {
 
     const outputs = pick(outputsList, config)
 
-    this.ui.log()
-    this.ui.output('name', `       ${outputs.name}`)
-    this.ui.output('description', `${outputs.description}`)
-    this.ui.output('memory', `     ${outputs.memory}`)
-    this.ui.output('timeout', `    ${outputs.timeout}`)
-    this.ui.output('arn', `        ${outputs.arn}`)
+    this.context.log()
+    this.context.output('name', `       ${outputs.name}`)
+    this.context.output('description', `${outputs.description}`)
+    this.context.output('memory', `     ${outputs.memory}`)
+    this.context.output('timeout', `    ${outputs.timeout}`)
+    this.context.output('arn', `        ${outputs.arn}`)
 
     return outputs
   }
@@ -158,7 +158,7 @@ class AwsLambda extends Component {
       credentials: this.context.credentials.aws
     })
 
-    this.ui.status(`Removing`)
+    this.context.status(`Removing`)
 
     const awsIamRole = await this.load('@serverless/aws-iam-role')
     const layer = await this.load('@serverless/aws-lambda-layer')
