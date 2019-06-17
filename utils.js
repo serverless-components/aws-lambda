@@ -109,7 +109,7 @@ const createLambda = async ({
   return res.FunctionArn
 }
 
-const updateLambda = async ({
+const updateLambdaConfig = async ({
   lambda,
   name,
   handler,
@@ -118,23 +118,9 @@ const updateLambda = async ({
   runtime,
   env,
   description,
-  zipPath,
-  bucket,
   role,
   layer
 }) => {
-  const functionCodeParams = {
-    FunctionName: name,
-    Publish: true
-  }
-
-  if (bucket) {
-    functionCodeParams.S3Bucket = bucket
-    functionCodeParams.S3Key = path.basename(zipPath)
-  } else {
-    functionCodeParams.ZipFile = await readFile(zipPath)
-  }
-
   const functionConfigParams = {
     FunctionName: name,
     Description: description,
@@ -152,8 +138,24 @@ const updateLambda = async ({
     functionConfigParams.Layers = [layer.arn]
   }
 
-  await lambda.updateFunctionCode(functionCodeParams).promise()
   const res = await lambda.updateFunctionConfiguration(functionConfigParams).promise()
+
+  return res.FunctionArn
+}
+
+const updateLambdaCode = async ({ lambda, name, zipPath, bucket }) => {
+  const functionCodeParams = {
+    FunctionName: name,
+    Publish: true
+  }
+
+  if (bucket) {
+    functionCodeParams.S3Bucket = bucket
+    functionCodeParams.S3Key = path.basename(zipPath)
+  } else {
+    functionCodeParams.ZipFile = await readFile(zipPath)
+  }
+  const res = await lambda.updateFunctionCode(functionCodeParams).promise()
 
   return res.FunctionArn
 }
@@ -248,7 +250,8 @@ const pack = async (code, shims = [], packDeps = true) => {
 
 module.exports = {
   createLambda,
-  updateLambda,
+  updateLambdaCode,
+  updateLambdaConfig,
   getLambda,
   deleteLambda,
   getPolicy,

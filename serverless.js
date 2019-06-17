@@ -5,7 +5,8 @@ const { mergeDeepRight, pick } = require('ramda')
 const { Component, utils } = require('@serverless/core')
 const {
   createLambda,
-  updateLambda,
+  updateLambdaCode,
+  updateLambdaConfig,
   getLambda,
   deleteLambda,
   configChanged,
@@ -121,10 +122,10 @@ class AwsLambda extends Component {
         if (config.bucket && prevLambda.hash !== config.hash) {
           this.context.status(`Uploading`)
           await deploymentBucket.upload({ name: config.bucket, file: config.zipPath })
+          await updateLambdaCode({ lambda, ...config })
         }
-
         this.context.status(`Updating`)
-        await updateLambda({ lambda, ...config })
+        await updateLambdaConfig({ lambda, ...config })
       }
     }
 
