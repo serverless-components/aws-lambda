@@ -77,7 +77,7 @@ myFunction:
 
     # if you'd like to include any shims
     shims:
-      - ../shims/shim.js 
+      - ../shims/shim.js
 
     # specifying an existing deployment bucket would optimise deployment speed
     # by using accelerated multipart uploads and dependency management with layers
@@ -99,9 +99,9 @@ aws-lambda (master)$ components
   shims:  []
   handler:  'handler.hello'
   runtime:  'nodejs8.10'
-  env: 
+  env:
     TABLE_NAME: my-table
-  role: 
+  role:
     name:  'serverless'
     arn:  'arn:aws:iam::552760238299:role/serverless'
     service:  'lambda.amazonaws.com'
@@ -117,6 +117,63 @@ aws-lambda (master)$
 For a real world example of how this component could be used, [take a look at how the socket component is using it](https://github.com/serverless-components/socket).
 
 &nbsp;
+
+### Suggested Policy
+
+We recommend you to create an user for your application with following policies:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "logs:PutLogEvents",
+                "logs:CreateLogStream",
+                "s3:CreateBucket",
+                "s3:GetObject",
+                "s3:GetBucketCORS",
+                "s3:GetBucketPolicy",
+                "s3:GetObjectAcl",
+                "s3:GetBucketAcl",
+                "s3:DeleteBucket",
+                "s3:DeleteObject",
+                "s3:DeleteBucketWebsite",
+                "s3:DeleteBucketPolicy",
+                "s3:PutObject",
+                "s3:PutObjectAcl",
+                "s3:PutBucketAcl",
+                "s3:PutBucketCORS",
+                "s3:PutBucketPolicy",
+                "s3:PutBucketWebsite",
+                "lambda:AddLayerVersionPermission",
+                "lambda:PublishVersion",
+                "lambda:CreateFunction",
+                "lambda:GetFunctionConfiguration",
+                "lambda:DeleteLayerVersion",
+                "lambda:DeleteFunction",
+                "lambda:UpdateFunctionCode",
+                "lambda:UpdateFunctionConfiguration",
+                "iam:AttachRolePolicy",
+                "iam:AttachUserPolicy",
+                "iam:CreateRole",
+                "iam:DeleteRole",
+                "iam:DeleteRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:DetachUserPolicy",
+                "iam:UpdateAssumeRolePolicy",
+                "iam:PassRole",
+                "iam:PutRolePolicy",
+                "iam:PutUserPolicy",
+                "iam:GetRole"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
 
 ### New to Components?
 
