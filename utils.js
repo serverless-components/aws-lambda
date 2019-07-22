@@ -22,7 +22,7 @@ const packDir = async (inputDirPath, outputFilePath, include = [], exclude = [],
     exclude.forEach((excludedItem) => patterns.push(`!${excludedItem}`))
   }
 
-  const files = (await globby(patterns, { cwd: inputDirPath }))
+  const files = (await globby(patterns, { cwd: inputDirPath, dot: true }))
     .sort() // we must sort to ensure correct hash
     .map((file) => ({
       input: path.join(inputDirPath, file),
