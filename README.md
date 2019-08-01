@@ -36,13 +36,11 @@ the directory should look something like this:
 |- .env           # your AWS api keys
 ```
 
-the `.env` file should look like this
-
 ```
+# .env
 AWS_ACCESS_KEY_ID=XXX
 AWS_SECRET_ACCESS_KEY=XXX
 ```
-while the `handler.js` file should look like this
 
 ```js
 // handler.js
