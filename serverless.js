@@ -109,7 +109,6 @@ class AwsLambda extends Component {
     } else {
       this.context.status('Packaging')
       this.context.debug(`Packaging lambda code from ${config.code}.`)
-
       config.zipPath = await pack(config.code, config.shims)
     }
 
@@ -138,10 +137,14 @@ class AwsLambda extends Component {
       config.arn = prevLambda.arn
       if (configChanged(prevLambda, config)) {
         if (config.bucket && prevLambda.hash !== config.hash) {
-          this.context.status(`Uploading`)
-          this.context.debug(`Uploading ${config.name} lambda package to bucket ${config.bucket}.`)
+          this.context.status(`Uploading code`)
+          this.context.debug(`Uploading ${config.name} lambda code to bucket ${config.bucket}.`)
 
           await deploymentBucket.upload({ name: config.bucket, file: config.zipPath })
+          await updateLambdaCode({ lambda, ...config })
+        } else if (!config.bucket && prevLambda.hash !== config.hash) {
+          this.context.status(`Uploading code`)
+          this.context.debug(`Uploading ${config.name} lambda code.`)
           await updateLambdaCode({ lambda, ...config })
         }
         this.context.status(`Updating`)
