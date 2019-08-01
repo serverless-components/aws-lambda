@@ -36,6 +36,14 @@ the directory should look something like this:
 |- .env           # your AWS api keys
 ```
 
+the `.env` file should look like this
+
+```
+AWS_ACCESS_KEY_ID=XXX
+AWS_SECRET_ACCESS_KEY=XXX
+```
+while the `handler.js` file should look like this
+
 ```js
 // handler.js
 module.exports.hello = async (event, context, cb) => {
@@ -44,21 +52,10 @@ module.exports.hello = async (event, context, cb) => {
 
 ```
 
-the `.env` files are not required if you have the aws keys set globally and you want to use a single stage, but they should look like this.
-
-```
-AWS_ACCESS_KEY_ID=XXX
-AWS_SECRET_ACCESS_KEY=XXX
-```
-
-
 ### 3. Configure
 
 ```yml
 # serverless.yml
-
-name: my-function
-stage: dev
 
 myFunction:
   component: "@serverless/aws-lambda"
