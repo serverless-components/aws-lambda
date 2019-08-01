@@ -15,7 +15,7 @@ Deploy Lambda functions to AWS in seconds with [Serverless Components](https://g
 ### 1. Install
 
 ```console
-$ npm install -g @serverless/components
+$ npm install -g serverless
 ```
 
 ### 2. Create
@@ -33,8 +33,7 @@ the directory should look something like this:
   |- handler.js
   |- package.json # optional
 |- serverless.yml
-|- .env      # your development AWS api keys
-|- .env.prod # your production AWS api keys
+|- .env           # your AWS api keys
 ```
 
 ```js
@@ -87,32 +86,7 @@ myFunction:
 ### 4. Deploy
 
 ```console
-aws-lambda (master)$ components
-
-  AwsLambda › outputs:
-  name:  'my-function'
-  description:  'My Serverless Function'
-  memory:  128
-  timeout:  20
-  code:  './code'
-  bucket:  undefined
-  shims:  []
-  handler:  'handler.hello'
-  runtime:  'nodejs8.10'
-  env: 
-    TABLE_NAME: my-table
-  role: 
-    name:  'serverless'
-    arn:  'arn:aws:iam::552760238299:role/serverless'
-    service:  'lambda.amazonaws.com'
-    policy:  { arn: 'arn:aws:iam::aws:policy/AdministratorAccess' }
-  arn:  'arn:aws:lambda:us-east-1:552760238299:function:serverless'
-
-
-  22s › dev › my-function › done
-
-aws-lambda (master)$
-
+$ serverless
 ```
 For a real world example of how this component could be used, [take a look at how the socket component is using it](https://github.com/serverless-components/socket).
 
