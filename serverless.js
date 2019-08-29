@@ -63,12 +63,9 @@ class AwsLambda extends Component {
     const awsIamRole = await this.load('@serverless/aws-iam-role')
 
     // If no role exists, create a default role
-    if (config.role && config.role.arn) {
-      this.state.iamIsStatic = true
-    } else if (config.role) {
-      const outputsAwsIamRole = await awsIamRole(config.role)
-      config.role = { arn: outputsAwsIamRole.arn }
-    } else {
+    this.state.iamIsStatic = true
+    if (!config.role && !config.role.arn) {
+      this.state.iamIsStatic = false
       this.context.debug(`No role provided for lambda ${config.name}.`)
 
       const outputsAwsIamRole = await awsIamRole({
