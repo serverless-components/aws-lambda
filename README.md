@@ -69,6 +69,9 @@ myFunction:
       TABLE_NAME: my-table
     region: us-east-1
 
+    # if you want to use a specific role pass an arn
+    role: arn:XXX
+
     # if you'd like to include any shims
     shims:
       - ../shims/shim.js 
