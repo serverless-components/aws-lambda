@@ -106,7 +106,7 @@ const createLambda = async ({
 
   const res = await lambda.createFunction(params).promise()
 
-  return res.FunctionArn
+  return { arn: res.FunctionArn, hash: res.CodeSha256 }
 }
 
 const updateLambdaConfig = async ({
@@ -140,7 +140,7 @@ const updateLambdaConfig = async ({
 
   const res = await lambda.updateFunctionConfiguration(functionConfigParams).promise()
 
-  return res.FunctionArn
+  return { arn: res.FunctionArn, hash: res.CodeSha256 }
 }
 
 const updateLambdaCode = async ({ lambda, name, zipPath, bucket }) => {

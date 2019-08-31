@@ -15,6 +15,7 @@ const {
 
 const outputsList = [
   'name',
+  'hash',
   'description',
   'memory',
   'timeout',
@@ -132,9 +133,12 @@ class AwsLambda extends Component {
       this.context.status(`Creating`)
       this.context.debug(`Creating lambda ${config.name} in the ${config.region} region.`)
 
-      config.arn = await createLambda({ lambda, ...config })
+      const createResult = await createLambda({ lambda, ...config })
+      config.arn = createResult.arn
+      config.hash = createResult.hash
     } else {
       config.arn = prevLambda.arn
+
       if (configChanged(prevLambda, config)) {
         if (config.bucket && prevLambda.hash !== config.hash) {
           this.context.status(`Uploading code`)
@@ -147,10 +151,12 @@ class AwsLambda extends Component {
           this.context.debug(`Uploading ${config.name} lambda code.`)
           await updateLambdaCode({ lambda, ...config })
         }
+
         this.context.status(`Updating`)
         this.context.debug(`Updating ${config.name} lambda config.`)
 
-        await updateLambdaConfig({ lambda, ...config })
+        const updateResult = await updateLambdaConfig({ lambda, ...config })
+        config.hash = updateResult.hash
       }
     }
 
@@ -170,6 +176,24 @@ class AwsLambda extends Component {
     await this.save()
 
     return outputs
+  }
+
+  async publishVersion() {
+    const { name, region, hash } = this.state
+
+    const lambda = new AwsSdkLambda({
+      region,
+      credentials: this.context.credentials.aws
+    })
+
+    const { Version } = await lambda
+      .publishVersion({
+        FunctionName: name,
+        CodeSha256: hash
+      })
+      .promise()
+
+    return { version: Version }
   }
 
   async remove() {
