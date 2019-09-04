@@ -75,7 +75,7 @@ const createLambda = async ({
   description,
   zipPath,
   bucket,
-  role,
+  roleArn,
   layer
 }) => {
   const params = {
@@ -85,7 +85,7 @@ const createLambda = async ({
     Handler: handler,
     MemorySize: memory,
     Publish: true,
-    Role: role.arn,
+    Role: roleArn,
     Runtime: runtime,
     Timeout: timeout,
     Environment: {
@@ -118,7 +118,7 @@ const updateLambdaConfig = async ({
   runtime,
   env,
   description,
-  role,
+  roleArn,
   layer
 }) => {
   const functionConfigParams = {
@@ -126,7 +126,7 @@ const updateLambdaConfig = async ({
     Description: description,
     Handler: handler,
     MemorySize: memory,
-    Role: role.arn,
+    Role: roleArn,
     Runtime: runtime,
     Timeout: timeout,
     Environment: {
@@ -173,9 +173,7 @@ const getLambda = async ({ lambda, name }) => {
       description: res.Description,
       timeout: res.Timeout,
       runtime: res.Runtime,
-      role: {
-        arn: res.Role
-      },
+      role: res.Role,
       handler: res.Handler,
       memory: res.MemorySize,
       hash: res.CodeSha256,
@@ -220,9 +218,8 @@ const getPolicy = async ({ name, region, accountId }) => {
 }
 
 const configChanged = (prevLambda, lambda) => {
-  const keys = ['description', 'runtime', 'role', 'handler', 'memory', 'timeout', 'env', 'hash']
+  const keys = ['description', 'runtime', 'roleArn', 'handler', 'memory', 'timeout', 'env', 'hash']
   const inputs = pick(keys, lambda)
-  inputs.role = { arn: inputs.role.arn } // remove other inputs.role component outputs
   const prevInputs = pick(keys, prevLambda)
   return not(equals(inputs, prevInputs))
 }

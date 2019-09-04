@@ -24,7 +24,7 @@ const outputsList = [
   'handler',
   'runtime',
   'env',
-  'role',
+  'roleArn',
   'layer',
   'arn',
   'region'
@@ -63,7 +63,8 @@ class AwsLambda extends Component {
     const awsIamRole = await this.load('@serverless/aws-iam-role')
 
     // If no role exists, create a default role
-    if (!config.role) {
+    this.state.iamIsStatic = true
+    if (!config.roleArn) {
       this.state.iamIsStatic = false
       this.context.debug(`No role provided for lambda ${config.name}.`)
 
@@ -74,10 +75,7 @@ class AwsLambda extends Component {
         },
         region: config.region
       })
-      config.role = { arn: outputsAwsIamRole.arn }
-    } else {
-      this.state.iamIsStatic = true
-      config.role = { arn: config.role }
+      config.roleArn = outputsAwsIamRole.arn
     }
 
     if (
