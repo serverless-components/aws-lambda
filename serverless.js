@@ -24,7 +24,7 @@ const outputsList = [
   'handler',
   'runtime',
   'env',
-  'roleArn',
+  'role',
   'layer',
   'arn',
   'region'
@@ -64,7 +64,7 @@ class AwsLambda extends Component {
 
     // If no role exists, create a default role
     this.state.iamIsStatic = true
-    if (!config.roleArn) {
+    if (!config.role || !config.role.arn) {
       this.state.iamIsStatic = false
       this.context.debug(`No role provided for lambda ${config.name}.`)
 
@@ -75,7 +75,7 @@ class AwsLambda extends Component {
         },
         region: config.region
       })
-      config.roleArn = outputsAwsIamRole.arn
+      config.role = { arn: outputsAwsIamRole.arn }
     }
 
     if (

@@ -70,7 +70,8 @@ myFunction:
     region: us-east-1
 
     # if you want to use a specific role pass an arn
-    roleArn: arn:XXX
+    role: 
+      arn: arn:XXX
 
     # if you'd like to include any shims
     shims:
