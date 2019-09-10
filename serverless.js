@@ -64,20 +64,18 @@ class AwsLambda extends Component {
     const awsIamRole = await this.load('@serverless/aws-iam-role')
 
     // If no role exists, create a default role
-    let outputsAwsIamRole
-    if (!config.role) {
+    this.state.iamIsStatic = true
+    if (!config.role || !config.role.arn) {
+      this.state.iamIsStatic = false
       this.context.debug(`No role provided for lambda ${config.name}.`)
 
-      outputsAwsIamRole = await awsIamRole({
+      const outputsAwsIamRole = await awsIamRole({
         service: 'lambda.amazonaws.com',
         policy: {
           arn: 'arn:aws:iam::aws:policy/AdministratorAccess'
         },
         region: config.region
       })
-      config.role = { arn: outputsAwsIamRole.arn }
-    } else {
-      outputsAwsIamRole = await awsIamRole(config.role)
       config.role = { arn: outputsAwsIamRole.arn }
     }
 
@@ -172,7 +170,7 @@ class AwsLambda extends Component {
 
     const outputs = pick(outputsList, config)
 
-    this.state = outputs
+    this.state = mergeDeepRight(this.state, outputs)
     await this.save()
 
     return outputs
@@ -204,7 +202,7 @@ class AwsLambda extends Component {
       return
     }
 
-    const { name, region } = this.state
+    const { name, region, iamIsStatic } = this.state
 
     const lambda = new AwsSdkLambda({
       region,
@@ -214,7 +212,9 @@ class AwsLambda extends Component {
     const awsIamRole = await this.load('@serverless/aws-iam-role')
     const layer = await this.load('@serverless/aws-lambda-layer')
 
-    await awsIamRole.remove()
+    if (!iamIsStatic) {
+      await awsIamRole.remove()
+    }
     await layer.remove()
 
     this.context.debug(`Removing lambda ${name} from the ${region} region.`)
