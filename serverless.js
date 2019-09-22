@@ -32,7 +32,7 @@ const outputsList = [
 ]
 
 const defaults = {
-  description: 'AWS Lambda Component',
+  description: 'A Function deployed via the AWS Lambda Component',
   memory: 512,
   timeout: 10,
   code: process.cwd(),
@@ -45,6 +45,11 @@ const defaults = {
 }
 
 class AwsLambda extends Component {
+
+  /**
+   * Default
+   */
+
   async default(inputs = {}) {
     this.context.status(`Deploying`)
 
@@ -196,7 +201,11 @@ class AwsLambda extends Component {
     return { version: Version }
   }
 
-  async remove() {
+  /**
+   * Remove
+   */
+
+  async remove(inputs = {}) {
     this.context.status(`Removing`)
 
     if (!this.state.name) {
@@ -227,6 +236,299 @@ class AwsLambda extends Component {
     await this.save()
 
     return outputs
+  }
+
+  /**
+   * Logs
+   */
+
+  async logs(inputs = { nextToken: null }) {
+
+    // Ensure this has been deployed
+    if (!this.state.name) {
+      throw new Error(`This function has not been deployed.`)
+    }
+
+    inputs.nextToken = inputs.nextToken || null
+    if (!inputs.startTime || !inputs.endTime) {
+      inputs.startTime = new Date(new Date().getTime() - (24 * 60 * 60 * 1000))
+      inputs.startTime = inputs.startTime.toISOString()
+      inputs.endTime = new Date()
+      inputs.endTime = inputs.endTime.toISOString()
+    }
+
+    // Init AWS SDK
+    aws.config.apiVersions = {
+      cloudwatchlogs: '2014-03-28',
+    }
+    const cwLogs = new aws.CloudWatchLogs({
+      region: this.state.region
+    })
+
+    // Log Group Name
+    const logGroupName = `/aws/lambda/${this.state.name}`
+
+    const streamParams = {
+      logGroupName: logGroupName,
+      descending: true,
+      limit: '10',
+      orderBy: 'LastEventTime',
+    }
+
+    let streams
+    try {
+      streams = await cwLogs.describeLogStreams(streamParams).promise()
+    } catch (error) {
+      if (error.code.includes('ResourceNotFoundException')) {
+        throw new Error(`Logs are not available for the Function ${this.state.name}.  This is usually because it has not yet been called.`)
+      } else {
+        throw new Error(error)
+      }
+    }
+
+    const latestStream = streams.logStreams[0]
+
+    const eventsParams = {
+      logGroupName: logGroupName, /* required */
+      logStreamName: latestStream.logStreamName, /* required */
+      nextToken: inputs.nextToken,
+      startFromHead: true,
+    }
+    let logs
+    try {
+      logs = await cwLogs.getLogEvents(eventsParams).promise()
+    } catch (error) {
+      throw new Error(error)
+    }
+
+    // Put data into standard format
+    const results = logs.events
+    .filter((event) => {
+      if (
+        event.message.includes('START RequestId: ') ||
+        event.message.includes('END RequestId: ') ||
+        event.message.includes('REPORT RequestId: ')
+      ) {
+        return false
+      } else {
+        return true
+      }
+    })
+    .map((event) => {
+
+      let timestamp
+      let message
+      let meta = {}
+      timestamp = event.message.split(`\t`)[0]
+      meta.requestId = event.message.split(`\t`)[1]
+      meta.type = event.message.split(`\t`)[2]
+      message = event.message.split(`\t`)[3]
+
+      return {
+        timestamp,
+        message,
+        meta
+      }
+    })
+
+    return {
+      logs: results
+    }
+  }
+
+  /**
+   * Metrics
+   */
+
+  async metrics(inputs = {}) {
+
+    // Ensure this has been deployed
+    if (!this.state.name) {
+      throw new Error(`This function has not been deployed.`)
+    }
+
+    inputs.nextToken = null
+    if (!inputs.startTime || !inputs.endTime) {
+      inputs.startTime = new Date(new Date().getTime() - (24 * 60 * 60 * 1000))
+      inputs.startTime = inputs.startTime.toISOString()
+      inputs.endTime = new Date()
+      inputs.endTime = inputs.endTime.toISOString()
+    }
+
+    const cloudwatch = new aws.CloudWatch({
+      region: this.state.region
+    })
+
+    const params = {
+      StartTime: inputs.startTime,
+      EndTime: inputs.endTime,
+      NextToken: inputs.nextToken,
+      ScanBy: 'TimestampDescending',
+      MetricDataQueries: [
+        {
+          Id: `metric_alias0`,
+          MetricStat: {
+            Metric: {
+              Dimensions: [
+                {
+                  Name: 'FunctionName',
+                  Value: `${this.state.name}`
+                },
+              ],
+              MetricName: 'Invocations',
+              Namespace: 'AWS/Lambda'
+            },
+            Period: 300,
+            Stat: 'Sum',
+            Unit: 'Count',
+          },
+          ReturnData: true
+        },
+        {
+          Id: `metric_alias1`,
+          MetricStat: {
+            Metric: {
+              Dimensions: [
+                {
+                  Name: 'FunctionName',
+                  Value: `${this.state.name}`
+                },
+              ],
+              MetricName: 'Errors',
+              Namespace: 'AWS/Lambda'
+            },
+            Period: 300,
+            Stat: 'Sum',
+            Unit: 'Count',
+          },
+          ReturnData: true
+        },
+        {
+          Id: `metric_alias2`,
+          MetricStat: {
+            Metric: {
+              Dimensions: [
+                {
+                  Name: 'FunctionName',
+                  Value: `${this.state.name}`
+                },
+              ],
+              MetricName: 'Duration',
+              Namespace: 'AWS/Lambda'
+            },
+            Period: 300,
+            Stat: 'Average',
+            Unit: 'Milliseconds',
+          },
+          ReturnData: true
+        },
+        {
+          Id: `metric_alias3`,
+          MetricStat: {
+            Metric: {
+              Dimensions: [
+                {
+                  Name: 'FunctionName',
+                  Value: `${this.state.name}`
+                },
+              ],
+              MetricName: 'Duration',
+              Namespace: 'AWS/Lambda'
+            },
+            Period: 300,
+            Stat: 'p95',
+            Unit: 'Milliseconds',
+          },
+          ReturnData: true
+        },
+        {
+          Id: `metric_alias4`,
+          MetricStat: {
+            Metric: {
+              Dimensions: [
+                {
+                  Name: 'FunctionName',
+                  Value: `${this.state.name}`
+                },
+              ],
+              MetricName: 'Throttles',
+              Namespace: 'AWS/Lambda'
+            },
+            Period: 300,
+            Stat: 'Sum',
+            Unit: 'Count',
+          },
+          ReturnData: true
+        },
+      ]
+    }
+
+    const cwMetrics = await cloudwatch.getMetricData(params).promise()
+
+    // Put data into standard format
+    const metrics = []
+
+    const invocations = {
+      type: 'keyVal', // type of data
+      name: 'Invocations',
+      keys: [],
+      values: [],
+    }
+    if (cwMetrics.MetricDataResults && cwMetrics.MetricDataResults[0]) {
+      invocations.keys = cwMetrics.MetricDataResults[0].Timestamps
+      invocations.values = cwMetrics.MetricDataResults[0].Values
+    }
+    metrics.push(invocations)
+
+    const errors = {
+      type: 'keyVal', // type of data
+      name: 'Errors',
+      keys: [],
+      values: [],
+    }
+    if (cwMetrics.MetricDataResults && cwMetrics.MetricDataResults[1]) {
+      errors.keys = cwMetrics.MetricDataResults[1].Timestamps
+      errors.values = cwMetrics.MetricDataResults[1].Values
+    }
+    metrics.push(errors)
+
+    const durations = {
+      type: 'keyVal', // type of data
+      name: 'Durations',
+      keys: [],
+      values: [],
+    }
+    if (cwMetrics.MetricDataResults && cwMetrics.MetricDataResults[2]) {
+      durations.keys = cwMetrics.MetricDataResults[2].Timestamps
+      durations.values = cwMetrics.MetricDataResults[2].Values
+    }
+    metrics.push(durations)
+
+    const durationp95s = {
+      type: 'keyVal', // type of data
+      name: 'Duration P95',
+      keys: [],
+      values: [],
+    }
+    if (cwMetrics.MetricDataResults && cwMetrics.MetricDataResults[3]) {
+      durationp95s.keys = cwMetrics.MetricDataResults[3].Timestamps
+      durationp95s.values = cwMetrics.MetricDataResults[3].Values
+    }
+    metrics.push(durationp95s)
+
+    const throttles = {
+      type: 'keyVal', // type of data
+      name: 'Throttles',
+      keys: [],
+      values: [],
+    }
+    if (cwMetrics.MetricDataResults && cwMetrics.MetricDataResults[4]) {
+      throttles.keys = cwMetrics.MetricDataResults[4].Timestamps
+      throttles.values = cwMetrics.MetricDataResults[4].Values
+    }
+    metrics.push(throttles)
+
+    return { metrics }
   }
 }
 
