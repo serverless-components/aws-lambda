@@ -76,7 +76,7 @@ const createLambda = async ({
   zipPath,
   bucket,
   role,
-  layer
+  layers
 }) => {
   const params = {
     FunctionName: name,
@@ -93,8 +93,14 @@ const createLambda = async ({
     }
   }
 
-  if (layer && layer.arn) {
-    params.Layers = [layer.arn]
+  if (layers) {
+    params.Layers = []
+    for (const layer of layers) {
+      if (layer.arn)
+        params.push(layer.arn)
+      else
+        params.push(layer)
+    }
   }
 
   if (bucket) {
@@ -119,7 +125,7 @@ const updateLambdaConfig = async ({
   env,
   description,
   role,
-  layer
+  layers
 }) => {
   const functionConfigParams = {
     FunctionName: name,
@@ -134,8 +140,14 @@ const updateLambdaConfig = async ({
     }
   }
 
-  if (layer && layer.arn) {
-    functionConfigParams.Layers = [layer.arn]
+  if (layers) {
+    params.Layers = []
+    for (const layer of layers) {
+      if (layer.arn)
+        params.push(layer.arn)
+      else
+        params.push(layer)
+    }
   }
 
   const res = await lambda.updateFunctionConfiguration(functionConfigParams).promise()

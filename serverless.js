@@ -26,7 +26,7 @@ const outputsList = [
   'runtime',
   'env',
   'role',
-  'layer',
+  'layers',
   'arn',
   'region'
 ]
@@ -106,7 +106,7 @@ class AwsLambda extends Component {
       const promises = [pack(config.code, config.shims, false), layer(layerInputs)]
       const res = await Promise.all(promises)
       config.zipPath = res[0]
-      config.layer = res[1]
+      config.layers = [...config.layers, res[1]]
     } else {
       this.context.status('Packaging')
       this.context.debug(`Packaging lambda code from ${config.code}.`)
