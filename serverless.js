@@ -70,6 +70,7 @@ class AwsLambda extends Component {
 
       outputsAwsIamRole = await awsIamRole({
         service: 'lambda.amazonaws.com',
+        name: config.name,
         policy: {
           arn: 'arn:aws:iam::aws:policy/AdministratorAccess'
         },
