@@ -39,7 +39,7 @@ const defaults = {
   bucket: undefined,
   shims: [],
   handler: 'handler.hello',
-  runtime: 'nodejs10.x',
+  runtime: 'nodejs12.x',
   env: {},
   region: 'us-east-1'
 }
@@ -83,7 +83,7 @@ class AwsLambda extends Component {
 
     if (
       config.bucket &&
-      config.runtime === 'nodejs10.x' &&
+      ['nodejs10.x', 'nodejs12.x'].includes(config.runtime) &&
       (await utils.dirExists(path.join(config.code, 'node_modules')))
     ) {
       this.context.debug(`Bucket ${config.bucket} is provided for lambda ${config.name}.`)
@@ -93,7 +93,7 @@ class AwsLambda extends Component {
       const layerInputs = {
         description: `${config.name} Dependencies Layer`,
         code: path.join(config.code, 'node_modules'),
-        runtimes: ['nodejs10.x'],
+        runtimes: [config.runtime],
         prefix: 'nodejs/node_modules',
         bucket: config.bucket,
         region: config.region
