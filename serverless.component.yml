@@ -1,5 +1,5 @@
 name: aws-lambda
-version: 0.0.1
+# version: 0.0.2
 author: eahefnawy
 org: serverlessinc
 description: Deploys an AWS IAM Role

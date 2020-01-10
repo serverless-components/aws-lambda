@@ -10,7 +10,7 @@ const {
   deleteLambda,
   configChanged,
   pack,
-  hashFile,
+  hashFile
 } = require('./utils')
 
 const outputsList = [
@@ -46,8 +46,17 @@ class AwsLambda extends Component {
     await this.status(`Deploying`)
 
     const config = mergeDeepRight(defaults, inputs)
-    const randomId = Math.random().toString(36).substring(6)
+    const randomId = Math.random()
+      .toString(36)
+      .substring(6)
     config.name = this.state.name || inputs.name || `aws-lambda-component-${this.stage}-${randomId}`
+
+    // setup dev mode
+    config.env.SERVERLESS_PLATFORM_STAGE = process.env.SERVERLESS_PLATFORM_STAGE
+    config.env.SERVERLESS_ACCESS_KEY = this.accessKey
+    config.env.SERVERLESS_COMPONENT_INSTANCE_ID = `${this.org}.${this.app}.${this.stage}.${this.name}`
+    config.env.USER_HANDLER = config.handler
+    config.handler = '_handler.handler'
 
     await this.debug(`Starting deployment of lambda ${config.name} to the ${config.region} region.`)
 
@@ -62,14 +71,16 @@ class AwsLambda extends Component {
     // If no role exists, create a default role
     let outputsAwsIamRole
     if (!config.role) {
-      await this.debug(`No role provided for lambda ${config.name}.  Creating/Updating default IAM Role with basic execution rights...`)
+      await this.debug(
+        `No role provided for lambda ${config.name}.  Creating/Updating default IAM Role with basic execution rights...`
+      )
       outputsAwsIamRole = await awsIamRole.deploy({
         name: config.name, // Create a default role with the same name as the function
         service: 'lambda.amazonaws.com',
         policy: {
           arn: 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
         },
-        region: config.region,
+        region: config.region
       })
       config.role = this.state.defaultRole = { arn: outputsAwsIamRole.arn }
       await this.save()
@@ -117,16 +128,17 @@ class AwsLambda extends Component {
       await deleteLambda({ lambda, name: this.state.name })
     }
 
-    await this.debug(
-      `Successfully deployed lambda ${config.name} in the ${config.region} region.`
-    )
+    await this.debug(`Successfully deployed lambda ${config.name} in the ${config.region} region.`)
 
     const outputs = pick(outputsList, config)
 
     this.state = outputs
     await this.save()
 
-    return outputs
+    return {
+      name: outputs.name,
+      arn: outputs.arn
+    }
   }
 
   async publishVersion() {

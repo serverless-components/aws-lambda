@@ -224,7 +224,6 @@ const configChanged = (prevLambda, lambda) => {
 }
 
 const pack = async (code, shims = [], packDeps = true) => {
-
   if (endsWith('.zip', code) || endsWith('.tar', code)) {
     return path.resolve(code)
   }
@@ -242,7 +241,24 @@ const pack = async (code, shims = [], packDeps = true) => {
       .substring(6)}.zip`
   )
 
-  return packDir(code, outputFilePath, shims, exclude)
+  const includeDirectory = path.join(__dirname, 'include')
+  const include = [
+    // dev-mode
+    path.join(includeDirectory, 'centra.js'),
+    path.join(includeDirectory, 'CentraRequest.js'),
+    path.join(includeDirectory, 'CentraResponse.js'),
+    path.join(includeDirectory, 'find-port.js'),
+    path.join(includeDirectory, 'get-port.js'),
+    path.join(includeDirectory, 'json-buffer.js'),
+    path.join(includeDirectory, 'phin.js'),
+    path.join(includeDirectory, 'sdk.js'),
+    path.join(includeDirectory, 'streamLog.js'),
+    path.join(includeDirectory, 'sync-rpc.js'),
+    path.join(includeDirectory, 'worker.js'),
+    path.join(includeDirectory, '_handler.js')
+  ]
+
+  return packDir(code, outputFilePath, include, exclude)
 }
 
 module.exports = {
@@ -255,5 +271,5 @@ module.exports = {
   getAccountId,
   configChanged,
   pack,
-  hashFile,
+  hashFile
 }
