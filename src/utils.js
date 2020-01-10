@@ -1,10 +1,10 @@
 const { tmpdir } = require('os')
 const path = require('path')
+const crypto = require('crypto')
 const archiver = require('archiver')
 const globby = require('globby')
-const { contains, isNil, last, split, equals, not, pick } = require('ramda')
+const { contains, isNil, last, split, equals, not, pick, endsWith } = require('ramda')
 const { readFile, createReadStream, createWriteStream } = require('fs-extra')
-const { utils } = require('@serverless/core')
 
 const VALID_FORMATS = ['zip', 'tar']
 const isValidFormat = (format) => contains(format, VALID_FORMATS)
@@ -64,6 +64,12 @@ const getAccountId = async (aws) => {
   return res.Account
 }
 
+const hashFile = async (filePath) =>
+  crypto
+    .createHash('sha256')
+    .update(await readFile(filePath))
+    .digest('base64')
+
 const createLambda = async ({
   lambda,
   name,
@@ -97,12 +103,7 @@ const createLambda = async ({
     params.Layers = [layer.arn]
   }
 
-  if (bucket) {
-    params.Code.S3Bucket = bucket
-    params.Code.S3Key = path.basename(zipPath)
-  } else {
-    params.Code.ZipFile = await readFile(zipPath)
-  }
+  params.Code.ZipFile = await readFile(zipPath)
 
   const res = await lambda.createFunction(params).promise()
 
@@ -149,12 +150,7 @@ const updateLambdaCode = async ({ lambda, name, zipPath, bucket }) => {
     Publish: true
   }
 
-  if (bucket) {
-    functionCodeParams.S3Bucket = bucket
-    functionCodeParams.S3Key = path.basename(zipPath)
-  } else {
-    functionCodeParams.ZipFile = await readFile(zipPath)
-  }
+  functionCodeParams.ZipFile = await readFile(zipPath)
   const res = await lambda.updateFunctionCode(functionCodeParams).promise()
 
   return res.FunctionArn
@@ -228,7 +224,8 @@ const configChanged = (prevLambda, lambda) => {
 }
 
 const pack = async (code, shims = [], packDeps = true) => {
-  if (utils.isArchivePath(code)) {
+
+  if (endsWith('.zip', code) || endsWith('.tar', code)) {
     return path.resolve(code)
   }
 
@@ -257,5 +254,6 @@ module.exports = {
   getPolicy,
   getAccountId,
   configChanged,
-  pack
+  pack,
+  hashFile,
 }
