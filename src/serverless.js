@@ -1,8 +1,9 @@
-const aws = require('aws-sdk')
-const AwsSdkLambda = aws.Lambda
-const { mergeDeepRight, pick } = require('ramda')
 const { Component } = require('@serverless/core')
 const {
+  getConfig,
+  getClients,
+  createRole,
+  removeRole,
   createLambda,
   updateLambdaCode,
   updateLambdaConfig,
@@ -13,80 +14,24 @@ const {
   hashFile
 } = require('./utils')
 
-const outputsList = [
-  'name',
-  'hash',
-  'description',
-  'memory',
-  'timeout',
-  'code',
-  'shims',
-  'handler',
-  'runtime',
-  'env',
-  'role',
-  'arn',
-  'region'
-]
-
-const defaults = {
-  description: 'AWS Lambda Component',
-  memory: 512,
-  timeout: 10,
-  code: process.cwd(),
-  shims: [],
-  handler: 'handler.hello',
-  runtime: 'nodejs10.x',
-  env: {},
-  region: 'us-east-1'
-}
-
 class AwsLambda extends Component {
   async deploy(inputs = {}) {
     await this.status(`Deploying`)
 
-    const config = mergeDeepRight(defaults, inputs)
-    const randomId = Math.random()
-      .toString(36)
-      .substring(6)
-    config.name = this.state.name || inputs.name || `aws-lambda-component-${this.stage}-${randomId}`
-
-    // setup dev mode
-    config.env.SERVERLESS_PLATFORM_STAGE = process.env.SERVERLESS_PLATFORM_STAGE
-    config.env.SERVERLESS_ACCESS_KEY = this.accessKey
-    config.env.SERVERLESS_COMPONENT_INSTANCE_ID = `${this.org}.${this.app}.${this.stage}.${this.name}`
-    config.env.USER_HANDLER = config.handler
-    config.handler = '_handler.handler'
+    const config = getConfig(inputs, this)
 
     await this.debug(`Starting deployment of lambda ${config.name} to the ${config.region} region.`)
 
-    const lambda = new AwsSdkLambda({
-      region: config.region,
-      credentials: this.credentials.aws
-    })
-
-    await this.debug(`Loading AWS IAM Role`)
-    const awsIamRole = this.load('aws-iam-role@0.0.4', 'role')
+    const { lambda, iam } = getClients(this.credentials.aws, config.region)
 
     // If no role exists, create a default role
-    let outputsAwsIamRole
-    if (!config.role) {
+    if (!config.roleArn) {
       await this.debug(
         `No role provided for lambda ${config.name}.  Creating/Updating default IAM Role with basic execution rights...`
       )
-      outputsAwsIamRole = await awsIamRole.deploy({
-        name: config.name, // Create a default role with the same name as the function
-        service: 'lambda.amazonaws.com',
-        policy: {
-          arn: 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
-        },
-        region: config.region
-      })
-      config.role = this.state.defaultRole = { arn: outputsAwsIamRole.arn }
+      config.roleArn = await createRole(iam, config)
+      this.state.roleArn = config.roleArn
       await this.save()
-    } else {
-      outputsAwsIamRole = await awsIamRole.deploy(config.role)
-      config.role = { arn: outputsAwsIamRole.arn }
     }
 
     await this.status('Packaging')
@@ -101,7 +46,7 @@ class AwsLambda extends Component {
       await this.status(`Creating`)
       await this.debug(`Creating lambda ${config.name} in the ${config.region} region.`)
 
-      const createResult = await createLambda({ lambda, ...config })
+      const createResult = await createLambda(lambda, config)
       config.arn = createResult.arn
       config.hash = createResult.hash
     } else {
@@ -111,18 +56,18 @@ class AwsLambda extends Component {
         if (prevLambda.hash !== config.hash) {
           await this.status(`Uploading code`)
           await this.debug(`Uploading ${config.name} lambda code.`)
-          await updateLambdaCode({ lambda, ...config })
+          await updateLambdaCode(lambda, config)
         }
 
         await this.status(`Updating`)
         await this.debug(`Updating ${config.name} lambda config.`)
 
-        const updateResult = await updateLambdaConfig({ lambda, ...config })
+        const updateResult = await updateLambdaConfig(lambda, config)
         config.hash = updateResult.hash
       }
     }
 
-    // todo we probably don't need this logic now thatt we auto generate names
+    // todo we probably don't need this logic now that we auto generate names
     if (this.state.name && this.state.name !== config.name) {
       await this.status(`Replacing`)
       await deleteLambda({ lambda, name: this.state.name })
@@ -130,24 +75,19 @@ class AwsLambda extends Component {
 
     await this.debug(`Successfully deployed lambda ${config.name} in the ${config.region} region.`)
 
-    const outputs = pick(outputsList, config)
-
-    this.state = outputs
+    this.state = config
     await this.save()
 
     return {
-      name: outputs.name,
-      arn: outputs.arn
+      name: config.name,
+      arn: config.arn
     }
   }
 
   async publishVersion() {
     const { name, region, hash } = this.state
 
-    const lambda = new AwsSdkLambda({
-      region,
-      credentials: this.credentials.aws
-    })
+    const { lambda } = getClients(this.credentials.aws, region)
 
     const { Version } = await lambda
       .publishVersion({
@@ -169,26 +109,19 @@ class AwsLambda extends Component {
 
     const { name, region } = this.state
 
-    const lambda = new AwsSdkLambda({
-      region,
-      credentials: this.credentials.aws
-    })
+    const { iam, lambda } = getClients(this.credentials.aws, region)
 
-    if (this.state.defaultRole) {
-      const awsIamRole = this.load('aws-iam-role', 'role')
-      await awsIamRole.remove()
+    if (this.state.roleArn) {
+      await this.debug(`Removing role with arn ${this.state.roleArn}.`)
+      await removeRole(iam, this.state)
     }
 
     await this.debug(`Removing lambda ${name} from the ${region} region.`)
     await deleteLambda({ lambda, name })
     await this.debug(`Successfully removed lambda ${name} from the ${region} region.`)
 
-    const outputs = pick(outputsList, this.state)
-
     this.state = {}
     await this.save()
-
-    return outputs
   }
 }
 

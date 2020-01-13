@@ -1,3 +1,4 @@
+const AWS = require('aws-sdk')
 const { tmpdir } = require('os')
 const path = require('path')
 const crypto = require('crypto')
@@ -5,6 +6,9 @@ const archiver = require('archiver')
 const globby = require('globby')
 const { contains, isNil, last, split, equals, not, pick, endsWith } = require('ramda')
 const { readFile, createReadStream, createWriteStream } = require('fs-extra')
+const fs = require('fs')
+
+const sleep = async (wait) => new Promise((resolve) => setTimeout(() => resolve(), wait))
 
 const VALID_FORMATS = ['zip', 'tar']
 const isValidFormat = (format) => contains(format, VALID_FORMATS)
@@ -64,79 +68,172 @@ const getAccountId = async (aws) => {
   return res.Account
 }
 
+const randomId = Math.random()
+  .toString(36)
+  .substring(6)
+
 const hashFile = async (filePath) =>
   crypto
     .createHash('sha256')
     .update(await readFile(filePath))
     .digest('base64')
 
-const createLambda = async ({
-  lambda,
-  name,
-  handler,
-  memory,
-  timeout,
-  runtime,
-  env,
-  description,
-  zipPath,
-  bucket,
-  role,
-  layer
-}) => {
-  const params = {
-    FunctionName: name,
-    Code: {},
-    Description: description,
-    Handler: handler,
-    MemorySize: memory,
-    Publish: true,
-    Role: role.arn,
-    Runtime: runtime,
-    Timeout: timeout,
-    Environment: {
-      Variables: env
-    }
+const getClients = (credentials, region) => {
+  const iam = new AWS.IAM({ credentials, region })
+  const lambda = new AWS.Lambda({ credentials, region })
+
+  return {
+    iam,
+    lambda
   }
-
-  if (layer && layer.arn) {
-    params.Layers = [layer.arn]
-  }
-
-  params.Code.ZipFile = await readFile(zipPath)
-
-  const res = await lambda.createFunction(params).promise()
-
-  return { arn: res.FunctionArn, hash: res.CodeSha256 }
 }
 
-const updateLambdaConfig = async ({
-  lambda,
-  name,
-  handler,
-  memory,
-  timeout,
-  runtime,
-  env,
-  description,
-  role,
-  layer
-}) => {
-  const functionConfigParams = {
-    FunctionName: name,
-    Description: description,
-    Handler: handler,
-    MemorySize: memory,
-    Role: role.arn,
-    Runtime: runtime,
-    Timeout: timeout,
+const writeDevModeConfigFile = (config, instance) => {
+  const devModeConfig = {
+    platformStage: process.env.SERVERLESS_PLATFORM_STAGE,
+    accessKey: instance.accessKey,
+    instanceId: `${instance.org}.${instance.app}.${instance.stage}.${instance.name}`,
+    userHandler: config.handler
+  }
+
+  const devModeConfigFilePath = path.join(config.src, `_devMode.json`)
+
+  fs.writeFileSync(devModeConfigFilePath, JSON.stringify(devModeConfig), 'utf8')
+}
+
+const getConfig = (inputs, instance) => {
+  const config = {
+    name:
+      inputs.name || instance.state.name || `aws-lambda-component-${instance.stage}-${randomId}`,
+    roleArn: inputs.roleArn || instance.state.roleArn,
+    roleName: `lambda-role-${instance.stage}-${randomId}`,
+    description: inputs.description || 'AWS Lambda Component',
+    memory: inputs.memory || 512,
+    timeout: inputs.timeout || 10,
+    src: inputs.src || process.cwd(),
+    shims: inputs.shims || [],
+    handler: inputs.handler || 'index.handler',
+    runtime: 'nodejs12.x',
+    env: inputs.env || {},
+    region: inputs.region || 'us-east-1'
+  }
+
+  // setup dev mode
+  // config.env.SERVERLESS_PLATFORM_STAGE = process.env.SERVERLESS_PLATFORM_STAGE
+  // config.env.SERVERLESS_ACCESS_KEY = instance.accessKey
+  // config.env.SERVERLESS_COMPONENT_INSTANCE_ID = `${instance.org}.${instance.app}.${instance.stage}.${instance.name}`
+  // config.env.USER_HANDLER = config.handler
+
+  writeDevModeConfigFile(config, instance)
+
+  config.handler = '_handler.handler'
+
+  return config
+}
+
+const createRole = async (iam, config) => {
+  const assumeRolePolicyDocument = {
+    Version: '2012-10-17',
+    Statement: {
+      Effect: 'Allow',
+      Principal: {
+        Service: ['lambda.amazonaws.com']
+      },
+      Action: 'sts:AssumeRole'
+    }
+  }
+  const res = await iam
+    .createRole({
+      RoleName: config.roleName,
+      Path: '/',
+      AssumeRolePolicyDocument: JSON.stringify(assumeRolePolicyDocument)
+    })
+    .promise()
+
+  await iam
+    .attachRolePolicy({
+      RoleName: config.roleName,
+      PolicyArn: 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+    })
+    .promise()
+
+  return res.Role.Arn
+}
+
+const removeRole = async (iam, config) => {
+  if (!config.roleArn) {
+    return
+  }
+  try {
+    await iam
+      .detachRolePolicy({
+        RoleName: config.roleArn.split('/')[1], // extract role name from arn
+        PolicyArn: 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      })
+      .promise()
+    await iam
+      .deleteRole({
+        RoleName: config.roleArn.split('/')[1]
+      })
+      .promise()
+  } catch (error) {
+    if (error.code !== 'NoSuchEntity') {
+      throw error
+    }
+  }
+}
+
+const createLambda = async (lambda, config) => {
+  const params = {
+    FunctionName: config.name,
+    Code: {},
+    Description: config.description,
+    Handler: config.handler,
+    MemorySize: config.memory,
+    Publish: true,
+    Role: config.roleArn,
+    Runtime: config.runtime,
+    Timeout: config.timeout,
     Environment: {
-      Variables: env
+      Variables: config.env
     }
   }
 
-  if (layer && layer.arn) {
-    functionConfigParams.Layers = [layer.arn]
+  if (config.layer && config.layer.arn) {
+    params.Layers = [config.layer.arn]
+  }
+
+  params.Code.ZipFile = await readFile(config.zipPath)
+
+  try {
+    const res = await lambda.createFunction(params).promise()
+    return { arn: res.FunctionArn, hash: res.CodeSha256 }
+  } catch (e) {
+    if (e.message.includes(`The role defined for the function cannot be assumed by Lambda`)) {
+      // we need to wait around 9 seconds after the role is craated before it can be assumed
+      await sleep(1000)
+      return createLambda(lambda, config)
+    }
+    throw e
+  }
+}
+
+const updateLambdaConfig = async (lambda, config) => {
+  const functionConfigParams = {
+    FunctionName: config.name,
+    Description: config.description,
+    Handler: config.handler,
+    MemorySize: config.memory,
+    Role: config.roleArn,
+    Runtime: config.runtime,
+    Timeout: config.timeout,
+    Environment: {
+      Variables: config.env
+    }
+  }
+
+  if (config.layer && config.layer.arn) {
+    functionConfigParams.Layers = [config.layer.arn]
   }
 
   const res = await lambda.updateFunctionConfiguration(functionConfigParams).promise()
@@ -144,13 +241,13 @@ const updateLambdaConfig = async ({
   return { arn: res.FunctionArn, hash: res.CodeSha256 }
 }
 
-const updateLambdaCode = async ({ lambda, name, zipPath, bucket }) => {
+const updateLambdaCode = async (lambda, config) => {
   const functionCodeParams = {
-    FunctionName: name,
+    FunctionName: config.name,
     Publish: true
   }
 
-  functionCodeParams.ZipFile = await readFile(zipPath)
+  functionCodeParams.ZipFile = await readFile(config.zipPath)
   const res = await lambda.updateFunctionCode(functionCodeParams).promise()
 
   return res.FunctionArn
@@ -216,9 +313,8 @@ const getPolicy = async ({ name, region, accountId }) => {
 }
 
 const configChanged = (prevLambda, lambda) => {
-  const keys = ['description', 'runtime', 'role', 'handler', 'memory', 'timeout', 'env', 'hash']
+  const keys = ['description', 'runtime', 'roleArn', 'handler', 'memory', 'timeout', 'env', 'hash']
   const inputs = pick(keys, lambda)
-  inputs.role = { arn: inputs.role.arn } // remove other inputs.role component outputs
   const prevInputs = pick(keys, prevLambda)
   return not(equals(inputs, prevInputs))
 }
@@ -242,7 +338,7 @@ const pack = async (code, shims = [], packDeps = true) => {
   )
 
   const includeDirectory = path.join(__dirname, 'include')
-  const include = [
+  const devModeIncludes = [
     // dev-mode
     path.join(includeDirectory, 'centra.js'),
     path.join(includeDirectory, 'CentraRequest.js'),
@@ -258,10 +354,14 @@ const pack = async (code, shims = [], packDeps = true) => {
     path.join(includeDirectory, '_handler.js')
   ]
 
-  return packDir(code, outputFilePath, include, exclude)
+  return packDir(code, outputFilePath, shims.concat(devModeIncludes), exclude)
 }
 
 module.exports = {
+  getConfig,
+  getClients,
+  createRole,
+  removeRole,
   createLambda,
   updateLambdaCode,
   updateLambdaConfig,
