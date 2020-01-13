@@ -233,8 +233,8 @@ const updateLambdaConfig = async (lambda, config) => {
     Environment: {
       Variables: config.env
     },
-    ...(vpcConfig
-      ? { VpcConfig: vpcConfig }
+    ...(config.vpcConfig
+      ? { VpcConfig: config.vpcConfig }
       : {
           VpcConfig: {
             SecurityGroupIds: [],
