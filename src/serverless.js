@@ -49,6 +49,15 @@ class AwsLambda extends Component {
       const createResult = await createLambda(lambda, config)
       config.arn = createResult.arn
       config.hash = createResult.hash
+      if (createResult.vpcConfig && createResult.vpcConfig.VpcId) {
+        config.vpcId = createResult.vpcConfig.VpcId
+        config.securityGroupIds = createResult.vpcConfig.SecurityGroupIds
+        config.subnetIds = createResult.vpcConfig.SubnetIds
+      } else {
+        config.vpcId = false
+        config.securityGroupIds = false
+        config.subnetIds = false
+      }
     } else {
       config.arn = prevLambda.arn
 
@@ -64,6 +73,15 @@ class AwsLambda extends Component {
 
         const updateResult = await updateLambdaConfig(lambda, config)
         config.hash = updateResult.hash
+        if (updateResult.vpcConfig.VpcId) {
+          config.vpcId = updateResult.vpcConfig.VpcId
+          config.securityGroupIds = updateResult.vpcConfig.SecurityGroupIds
+          config.subnetIds = updateResult.vpcConfig.SubnetIds
+        } else {
+          config.vpcId = false
+          config.securityGroupIds = false
+          config.subnetIds = false
+        }
       }
     }
 
