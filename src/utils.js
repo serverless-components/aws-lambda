@@ -196,7 +196,10 @@ const createLambda = async (lambda, config) => {
     Timeout: config.timeout,
     Environment: {
       Variables: config.env
-    }
+    },
+    ...(config.vpcConfig && {
+      VpcConfig: config.vpcConfig
+    })
   }
 
   if (config.layer && config.layer.arn) {
@@ -207,7 +210,7 @@ const createLambda = async (lambda, config) => {
 
   try {
     const res = await lambda.createFunction(params).promise()
-    return { arn: res.FunctionArn, hash: res.CodeSha256 }
+    return { arn: res.FunctionArn, hash: res.CodeSha256, vpcConfig: res.VpcConfig }
   } catch (e) {
     if (e.message.includes(`The role defined for the function cannot be assumed by Lambda`)) {
       // we need to wait around 9 seconds after the role is craated before it can be assumed
@@ -229,7 +232,15 @@ const updateLambdaConfig = async (lambda, config) => {
     Timeout: config.timeout,
     Environment: {
       Variables: config.env
-    }
+    },
+    ...(vpcConfig
+      ? { VpcConfig: vpcConfig }
+      : {
+          VpcConfig: {
+            SecurityGroupIds: [],
+            SubnetIds: []
+          }
+        })
   }
 
   if (config.layer && config.layer.arn) {
@@ -238,7 +249,7 @@ const updateLambdaConfig = async (lambda, config) => {
 
   const res = await lambda.updateFunctionConfiguration(functionConfigParams).promise()
 
-  return { arn: res.FunctionArn, hash: res.CodeSha256 }
+  return { arn: res.FunctionArn, hash: res.CodeSha256, vpcConfig: res.VpcConfig }
 }
 
 const updateLambdaCode = async (lambda, config) => {
@@ -273,7 +284,9 @@ const getLambda = async ({ lambda, name }) => {
       memory: res.MemorySize,
       hash: res.CodeSha256,
       env: res.Environment ? res.Environment.Variables : {},
-      arn: res.FunctionArn
+      arn: res.FunctionArn,
+      securityGroupIds: res.VpcConfig ? res.VpcConfig.SecurityGroupIds : false,
+      subnetIds: res.VpcConfig ? res.VpcConfig.SubnetIds : false
     }
   } catch (e) {
     if (e.code === 'ResourceNotFoundException') {
@@ -316,6 +329,31 @@ const configChanged = (prevLambda, lambda) => {
   const keys = ['description', 'runtime', 'roleArn', 'handler', 'memory', 'timeout', 'env', 'hash']
   const inputs = pick(keys, lambda)
   const prevInputs = pick(keys, prevLambda)
+
+  if (prevLambda.securityGroupIds && (!lambda.vpcConfig || !lambda.vpcConfig.SecurityGroupIds)) {
+    return true
+  }
+
+  if (prevLambda.subnetIds && (!lambda.vpcConfig || !lambda.vpcConfig.SubnetIds)) {
+    return true
+  }
+
+  if (!prevLambda.securityGroupIds && lambda.vpcConfig) {
+    return true
+  }
+
+  if (!prevLambda.subnetIds && lambda.vpcConfig) {
+    return true
+  }
+
+  if (not(equals(lambda.vpcConfig.SecurityGroupIds, prevLambda.securityGroupIds))) {
+    return true
+  }
+
+  if (not(equals(lambda.vpcConfig.SubnetIds, prevLambda.subnetIds))) {
+    return true
+  }
+
   return not(equals(inputs, prevInputs))
 }
 
