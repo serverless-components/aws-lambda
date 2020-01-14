@@ -20,9 +20,6 @@ class AwsLambda extends Component {
 
     const config = getConfig(inputs, this)
 
-    await this.debug('CONFIG - ' + config.securityGroupIds)
-    await this.status('CONFIG - ' + config.securityGroupIds)
-
     await this.debug(`Starting deployment of lambda ${config.name} to the ${config.region} region.`)
 
     const { lambda, iam } = getClients(this.credentials.aws, config.region)
@@ -49,11 +46,7 @@ class AwsLambda extends Component {
       await this.status(`Creating`)
       await this.debug(`Creating lambda ${config.name} in the ${config.region} region.`)
 
-      await this.debug('BEFOER - ')
-      await this.status('BEFOER - ')
       const createResult = await createLambda(lambda, config)
-      await this.status('AFTER - ')
-      await this.debug('AFTER - ')
       config.arn = createResult.arn
       config.hash = createResult.hash
     } else {
