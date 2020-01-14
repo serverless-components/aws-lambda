@@ -1,5 +1,5 @@
 {
-  "name": "@serverless/aws-lambda-test",
+  "name": "@serverless/aws-lambda",
   "version": "3.0.0",
   "main": "./serverless.js",
   "publishConfig": {
