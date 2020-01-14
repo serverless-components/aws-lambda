@@ -116,8 +116,8 @@ const getConfig = (inputs, instance) => {
     runtime: 'nodejs12.x',
     env: inputs.env || {},
     region: inputs.region || 'us-east-1',
-    securityGroupIds: inputs.vpcConfig ? inputs.vpcConfig.SecurityGroupIds : false,
-    subnetIds: inputs.vpcConfig ? inputs.vpcConfig.SubnetIds : false
+    securityGroupIds: inputs.vpcConfig ? inputs.vpcConfig.securityGroupIds : false,
+    subnetIds: inputs.vpcConfig ? inputs.vpcConfig.subnetIds : false
   }
 
   // setup dev mode
