@@ -115,7 +115,9 @@ const getConfig = (inputs, instance) => {
     handler: inputs.handler || 'index.handler',
     runtime: 'nodejs12.x',
     env: inputs.env || {},
-    region: inputs.region || 'us-east-1'
+    region: inputs.region || 'us-east-1',
+    securityGroupIds: inputs.vpcConfig ? inputs.vpcConfig.SecurityGroupIds : false,
+    subnetIds: inputs.vpcConfig ? inputs.vpcConfig.SubnetIds : false
   }
 
   // setup dev mode
@@ -197,8 +199,11 @@ const createLambda = async (lambda, config) => {
     Environment: {
       Variables: config.env
     },
-    ...(config.vpcConfig && {
-      VpcConfig: config.vpcConfig
+    ...(config.securityGroupIds && {
+      VpcConfig: {
+        SecurityGroupIds: config.securityGroupIds,
+        SubnetIds: config.subnetIds
+      }
     })
   }
 
@@ -210,7 +215,7 @@ const createLambda = async (lambda, config) => {
 
   try {
     const res = await lambda.createFunction(params).promise()
-    return { arn: res.FunctionArn, hash: res.CodeSha256, vpcConfig: res.VpcConfig }
+    return { arn: res.FunctionArn, hash: res.CodeSha256 }
   } catch (e) {
     if (e.message.includes(`The role defined for the function cannot be assumed by Lambda`)) {
       // we need to wait around 9 seconds after the role is craated before it can be assumed
@@ -233,8 +238,13 @@ const updateLambdaConfig = async (lambda, config) => {
     Environment: {
       Variables: config.env
     },
-    ...(config.vpcConfig
-      ? { VpcConfig: config.vpcConfig }
+    ...(config.securityGroupIds
+      ? {
+          VpcConfig: {
+            SecurityGroupIds: config.securityGroupIds,
+            SubnetIds: config.subnetIds
+          }
+        }
       : {
           VpcConfig: {
             SecurityGroupIds: [],
@@ -249,7 +259,7 @@ const updateLambdaConfig = async (lambda, config) => {
 
   const res = await lambda.updateFunctionConfiguration(functionConfigParams).promise()
 
-  return { arn: res.FunctionArn, hash: res.CodeSha256, vpcConfig: res.VpcConfig }
+  return { arn: res.FunctionArn, hash: res.CodeSha256 }
 }
 
 const updateLambdaCode = async (lambda, config) => {
@@ -326,34 +336,20 @@ const getPolicy = async ({ name, region, accountId }) => {
 }
 
 const configChanged = (prevLambda, lambda) => {
-  const keys = ['description', 'runtime', 'roleArn', 'handler', 'memory', 'timeout', 'env', 'hash']
+  const keys = [
+    'description',
+    'runtime',
+    'roleArn',
+    'handler',
+    'memory',
+    'timeout',
+    'env',
+    'hash',
+    'securityGroupIds',
+    'subnetIds'
+  ]
   const inputs = pick(keys, lambda)
   const prevInputs = pick(keys, prevLambda)
-
-  if (prevLambda.securityGroupIds && (!lambda.vpcConfig || !lambda.vpcConfig.SecurityGroupIds)) {
-    return true
-  }
-
-  if (prevLambda.subnetIds && (!lambda.vpcConfig || !lambda.vpcConfig.SubnetIds)) {
-    return true
-  }
-
-  if (!prevLambda.securityGroupIds && lambda.vpcConfig) {
-    return true
-  }
-
-  if (!prevLambda.subnetIds && lambda.vpcConfig) {
-    return true
-  }
-
-  if (not(equals(lambda.vpcConfig.SecurityGroupIds, prevLambda.securityGroupIds))) {
-    return true
-  }
-
-  if (not(equals(lambda.vpcConfig.SubnetIds, prevLambda.subnetIds))) {
-    return true
-  }
-
   return not(equals(inputs, prevInputs))
 }
 

@@ -20,6 +20,9 @@ class AwsLambda extends Component {
 
     const config = getConfig(inputs, this)
 
+    await this.debug('CONFIG - ' + config.securityGroupIds)
+    await this.status('CONFIG - ' + config.securityGroupIds)
+
     await this.debug(`Starting deployment of lambda ${config.name} to the ${config.region} region.`)
 
     const { lambda, iam } = getClients(this.credentials.aws, config.region)
@@ -46,18 +49,13 @@ class AwsLambda extends Component {
       await this.status(`Creating`)
       await this.debug(`Creating lambda ${config.name} in the ${config.region} region.`)
 
+      await this.debug('BEFOER - ')
+      await this.status('BEFOER - ')
       const createResult = await createLambda(lambda, config)
+      await this.status('AFTER - ')
+      await this.debug('AFTER - ')
       config.arn = createResult.arn
       config.hash = createResult.hash
-      if (createResult.vpcConfig && createResult.vpcConfig.VpcId) {
-        config.vpcId = createResult.vpcConfig.VpcId
-        config.securityGroupIds = createResult.vpcConfig.SecurityGroupIds
-        config.subnetIds = createResult.vpcConfig.SubnetIds
-      } else {
-        config.vpcId = false
-        config.securityGroupIds = false
-        config.subnetIds = false
-      }
     } else {
       config.arn = prevLambda.arn
 
@@ -73,15 +71,6 @@ class AwsLambda extends Component {
 
         const updateResult = await updateLambdaConfig(lambda, config)
         config.hash = updateResult.hash
-        if (updateResult.vpcConfig.VpcId) {
-          config.vpcId = updateResult.vpcConfig.VpcId
-          config.securityGroupIds = updateResult.vpcConfig.SecurityGroupIds
-          config.subnetIds = updateResult.vpcConfig.SubnetIds
-        } else {
-          config.vpcId = false
-          config.securityGroupIds = false
-          config.subnetIds = false
-        }
       }
     }
 
@@ -98,7 +87,9 @@ class AwsLambda extends Component {
 
     return {
       name: config.name,
-      arn: config.arn
+      arn: config.arn,
+      securityGroupIds: config.securityGroupIds,
+      subnetIds: config.subnetIds
     }
   }
 
