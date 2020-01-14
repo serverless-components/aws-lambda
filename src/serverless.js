@@ -51,7 +51,6 @@ class AwsLambda extends Component {
       config.hash = createResult.hash
     } else {
       config.arn = prevLambda.arn
-      await this.debug(`changeeeddd: ${configChanged(prevLambda, config)}`)
       if (configChanged(prevLambda, config)) {
         if (prevLambda.hash !== config.hash) {
           await this.status(`Uploading code`)
@@ -61,7 +60,6 @@ class AwsLambda extends Component {
 
         await this.status(`Updating`)
         await this.debug(`Updating ${config.name} lambda config.`)
-        await this.debug(JSON.stringify(config))
         const updateResult = await updateLambdaConfig(lambda, config)
         config.hash = updateResult.hash
       }
