@@ -36,10 +36,15 @@ class AwsLambda extends Component {
 
     await this.status('Packaging')
     await this.debug(`Packaging lambda code from ${config.src}.`)
+    console.log('packaging')
     config.zipPath = await pack(config.src, config.shims)
 
+    await this.debug('Hashing code')
+    console.log('Hashing Code')
     config.hash = await hashFile(config.zipPath)
 
+    console.log('Fetching previous lambda')
+    await this.debug('Fetching last config to compare against')
     const prevLambda = await getLambda({ lambda, ...config })
 
     if (!prevLambda) {

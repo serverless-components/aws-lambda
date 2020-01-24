@@ -116,6 +116,7 @@ const getConfig = (inputs, instance) => {
     runtime: 'nodejs12.x',
     env: inputs.env || {},
     region: inputs.region || 'us-east-1',
+    layers: inputs.layers || [],
     securityGroupIds: inputs.vpcConfig ? inputs.vpcConfig.securityGroupIds : false,
     subnetIds: inputs.vpcConfig ? inputs.vpcConfig.subnetIds : false
   }
@@ -196,6 +197,7 @@ const createLambda = async (lambda, config) => {
     Role: config.roleArn,
     Runtime: config.runtime,
     Timeout: config.timeout,
+    Layers: config.layers,
     Environment: {
       Variables: config.env
     },
@@ -235,6 +237,7 @@ const updateLambdaConfig = async (lambda, config) => {
     Role: config.roleArn,
     Runtime: config.runtime,
     Timeout: config.timeout,
+    Layers: config.layers,
     Environment: {
       Variables: config.env
     },

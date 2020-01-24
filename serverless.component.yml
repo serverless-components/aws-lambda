@@ -1,9 +1,9 @@
 name: aws-lambda
-version: 0.2.0
+version: 0.0.2
 author: eahefnawy
 org: serverlessinc
-description: Deploys an AWS IAM Role
-keywords: aws, serverless, iam, permissions, identity and access management
+description: Deploys an AWS Lambda Function
+keywords: aws, serverless, lambda, function, faas
 repo: https://github.com/serverless-components/aws-lambda
 readme: ''
 license: MIT
