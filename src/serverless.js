@@ -1,133 +1,122 @@
 const { Component } = require('@serverless/core')
 const {
-  getConfig,
+  prepareInputs,
   getClients,
   createRole,
+  getRole,
   removeRole,
-  createLambda,
-  updateLambdaCode,
-  updateLambdaConfig,
-  getLambda,
-  deleteLambda,
-  configChanged,
-  pack,
-  hashFile
+  createLambdaFunction,
+  updateLambdaFunctionCode,
+  updateLambdaFunctionConfig,
+  getLambdaFunction,
+  deleteLambdaFunction,
 } = require('./utils')
+const fs = require('fs')
+const path = require('path')
 
 class AwsLambda extends Component {
+
+  /**
+   * Deploy
+   * @param {*} inputs 
+   */
   async deploy(inputs = {}) {
-    await this.status(`Deploying`)
 
-    const config = getConfig(inputs, this)
+    // Prepare inputs
+    inputs = prepareInputs(inputs, this)
 
-    await this.debug(`Starting deployment of lambda ${config.name} to the ${config.region} region.`)
+    console.log(`Starting deployment of AWS Lambda "${inputs.name}" to the AWS region "${inputs.region}".`)
 
-    const { lambda, iam } = getClients(this.credentials.aws, config.region)
+    // Get AWS clients
+    const { lambda, iam } = getClients(this.credentials.aws, inputs.region)
 
-    // If no role exists, create a default role
-    if (!config.roleArn) {
-      await this.debug(
-        `No role provided for lambda ${config.name}.  Creating/Updating default IAM Role with basic execution rights...`
-      )
-      config.roleArn = await createRole(iam, config)
-      this.state.roleArn = config.roleArn
-      await this.save()
+    // Throw error on name change
+    if (this.state.name && this.state.name !== inputs.name) {
+      throw new Error(`Changing the name from ${this.state.name} to ${inputs.name} will delete the AWS Lambda function.  Please remove it manually, change the name, then re-deploy.`)
+    }
+    // Throw error on region change
+    if (this.state.region && this.state.region !== inputs.region) {
+      throw new Error(`Changing the region from ${this.state.region} to ${inputs.region} will delete the AWS Lambda function.  Please remove it manually, change the region, then re-deploy.`)
     }
 
-    await this.status('Packaging')
-    await this.debug(`Packaging lambda code from ${config.src}.`)
-    console.log('packaging')
-    config.zipPath = await pack(config.src, config.shims)
-
-    await this.debug('Hashing code')
-    console.log('Hashing Code')
-    config.hash = await hashFile(config.zipPath)
-
-    console.log('Fetching previous lambda')
-    await this.debug('Fetching last config to compare against')
-    const prevLambda = await getLambda({ lambda, ...config })
-
-    if (!prevLambda) {
-      await this.status(`Creating`)
-      await this.debug(`Creating lambda ${config.name} in the ${config.region} region.`)
-
-      const createResult = await createLambda(lambda, config)
-      config.arn = createResult.arn
-      config.hash = createResult.hash
-    } else {
-      config.arn = prevLambda.arn
-      if (configChanged(prevLambda, config)) {
-        if (prevLambda.hash !== config.hash) {
-          await this.status(`Uploading code`)
-          await this.debug(`Uploading ${config.name} lambda code.`)
-          await updateLambdaCode(lambda, config)
-        }
-
-        await this.status(`Updating`)
-        await this.debug(`Updating ${config.name} lambda config.`)
-        const updateResult = await updateLambdaConfig(lambda, config)
-        config.hash = updateResult.hash
+    // If no AWS IAM Role role exists, create a default role
+    if (!inputs.roleArn) {
+      console.log( `No AWS IAM Role provided. Creating/Updating default IAM Role with basic execution rights.`)
+      const iamRoleName = `${inputs.name}-role`
+      let res = await getRole(iam, iamRoleName)
+      if (res) {
+        inputs.autoRoleArn = this.state.autoRoleArn = res.Role.Arn
+      } else {
+        res = await createRole(iam, iamRoleName)
       }
+      inputs.autoRoleArn = this.state.autoRoleArn = res.Role.Arn
     }
 
-    // todo we probably don't need this logic now that we auto generate names
-    if (this.state.name && this.state.name !== config.name) {
-      await this.status(`Replacing`)
-      await deleteLambda({ lambda, name: this.state.name })
+    console.log(`Checking if an AWS Lambda function has already been created with name: ${inputs.name}`)
+    const prevLambda = await getLambdaFunction(lambda, inputs.name)
+
+    // If debug, unzip, add ServerlessSDK, zip again
+    if (this.debug) {
+      const filesPath = await this.unzip(inputs.src, true) // Returns directory with unzipped files
+      inputs.handler = this.addSDK(filesPath, inputs.handler) // Returns new handler
+      inputs.src = await this.zip(filesPath, true) // Returns new zip
     }
 
-    await this.debug(`Successfully deployed lambda ${config.name} in the ${config.region} region.`)
+    // Create or update Lambda function
+    if (!prevLambda) {
+      // Create a Lambda function
+      console.log(`Creating a new AWS Lambda function "${inputs.name}" in the "${inputs.region}" region.`)
+      const createResult = await createLambdaFunction(lambda, inputs)
+      inputs.arn = createResult.arn
+      inputs.hash = createResult.hash
+      console.log(`Successfully created an AWS Lambda function`)
+    } else {
+      // Update a Lambda function
+      inputs.arn = prevLambda.arn
+      console.log(`Uploading ${inputs.name} lambda code.`)
+      await updateLambdaFunctionCode(lambda, inputs)
+      await updateLambdaFunctionConfig(lambda, inputs)
+      console.log(`Successfully updated AWS Lambda function`)
+    }
 
-    this.state = config
-    await this.save()
+    // Update state
+    this.state.name = inputs.name
+    this.state.arn = inputs.arn
+    this.state.region = inputs.region
 
     return {
-      name: config.name,
-      arn: config.arn,
-      securityGroupIds: config.securityGroupIds,
-      subnetIds: config.subnetIds
+      name: inputs.name,
+      arn: inputs.arn,
+      securityGroupIds: inputs.securityGroupIds,
+      subnetIds: inputs.subnetIds
     }
   }
 
-  async publishVersion() {
-    const { name, region, hash } = this.state
-
-    const { lambda } = getClients(this.credentials.aws, region)
-
-    const { Version } = await lambda
-      .publishVersion({
-        FunctionName: name,
-        CodeSha256: hash
-      })
-      .promise()
-
-    return { version: Version }
-  }
-
-  async remove() {
-    await this.status(`Removing`)
-
+  /**
+   * Remove
+   * @param {*} inputs 
+   */
+  async remove(inputs = {}) {
     if (!this.state.name) {
-      await this.debug(`No state found.  Function appears removed already.  Aborting.`)
+      console.log(`No state found.  Function appears removed already.  Aborting.`)
       return
     }
 
     const { name, region } = this.state
-
     const { iam, lambda } = getClients(this.credentials.aws, region)
 
-    if (this.state.roleArn) {
-      await this.debug(`Removing role with arn ${this.state.roleArn}.`)
+    if (this.state.autoRoleArn) {
+      console.log(`Removing role that was automatically created for this function with ARN: ${this.state.autoRoleArn}.`)
       await removeRole(iam, this.state)
     }
 
-    await this.debug(`Removing lambda ${name} from the ${region} region.`)
-    await deleteLambda({ lambda, name })
-    await this.debug(`Successfully removed lambda ${name} from the ${region} region.`)
-
-    this.state = {}
-    await this.save()
+    console.log(`Removing lambda ${name} from the ${region} region.`)
+    await deleteLambdaFunction(lambda, name)
+    console.log(`Successfully removed lambda ${name} from the ${region} region.`)
   }
 }
 
+/**
+ * Exports
+ */
 module.exports = AwsLambda

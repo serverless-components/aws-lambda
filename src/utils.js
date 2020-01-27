@@ -1,117 +1,57 @@
 const AWS = require('aws-sdk')
-const { tmpdir } = require('os')
-const path = require('path')
 const crypto = require('crypto')
-const archiver = require('archiver')
-const globby = require('globby')
-const { contains, isNil, last, split, equals, not, pick, endsWith } = require('ramda')
-const { readFile, createReadStream, createWriteStream } = require('fs-extra')
-const fs = require('fs')
+const { equals, not, pick } = require('ramda')
+const { readFile } = require('fs-extra')
 
+/**
+ * Sleep
+ * @param {*} wait 
+ */
 const sleep = async (wait) => new Promise((resolve) => setTimeout(() => resolve(), wait))
 
-const VALID_FORMATS = ['zip', 'tar']
-const isValidFormat = (format) => contains(format, VALID_FORMATS)
-
-const packDir = async (inputDirPath, outputFilePath, include = [], exclude = [], prefix) => {
-  const format = last(split('.', outputFilePath))
-
-  if (!isValidFormat(format)) {
-    throw new Error('Please provide a valid format. Either a "zip" or a "tar"')
-  }
-
-  const patterns = ['**']
-
-  if (!isNil(exclude)) {
-    exclude.forEach((excludedItem) => patterns.push(`!${excludedItem}`))
-  }
-
-  const files = (await globby(patterns, { cwd: inputDirPath, dot: true }))
-    .sort() // we must sort to ensure correct hash
-    .map((file) => ({
-      input: path.join(inputDirPath, file),
-      output: prefix ? path.join(prefix, file) : file
-    }))
-
-  return new Promise((resolve, reject) => {
-    const output = createWriteStream(outputFilePath)
-    const archive = archiver(format, {
-      zlib: { level: 9 }
-    })
-
-    output.on('open', () => {
-      archive.pipe(output)
-
-      // we must set the date to ensure correct hash
-      files.forEach((file) =>
-        archive.append(createReadStream(file.input), { name: file.output, date: new Date(0) })
-      )
-
-      if (!isNil(include)) {
-        include.forEach((file) => {
-          const stream = createReadStream(file)
-          archive.append(stream, { name: path.basename(file), date: new Date(0) })
-        })
-      }
-
-      archive.finalize()
-    })
-
-    archive.on('error', (err) => reject(err))
-    output.on('close', () => resolve(outputFilePath))
-  })
-}
-
+/**
+ * Get AWS Account ID
+ * @param {*} aws 
+ */
 const getAccountId = async (aws) => {
   const STS = new aws.STS()
   const res = await STS.getCallerIdentity({}).promise()
   return res.Account
 }
 
+/**
+ * Generate a random ID
+ */
 const randomId = Math.random()
   .toString(36)
   .substring(6)
 
-const hashFile = async (filePath) =>
-  crypto
-    .createHash('sha256')
-    .update(await readFile(filePath))
-    .digest('base64')
-
+/**
+ * Get AWS SDK Clients
+ * @param {*} credentials 
+ * @param {*} region 
+ */
 const getClients = (credentials, region) => {
   const iam = new AWS.IAM({ credentials, region })
   const lambda = new AWS.Lambda({ credentials, region })
+  return { iam, lambda }
+}
 
+/**
+ * Prepare inputs
+ * @param {*} inputs 
+ * @param {*} instance 
+ */
+const prepareInputs = (inputs, instance) => {
   return {
-    iam,
-    lambda
-  }
-}
-
-const writeDevModeConfigFile = (config, instance) => {
-  const devModeConfig = {
-    platformStage: process.env.SERVERLESS_PLATFORM_STAGE,
-    accessKey: instance.accessKey,
-    instanceId: `${instance.org}.${instance.app}.${instance.stage}.${instance.name}`,
-    userHandler: config.handler
-  }
-
-  const devModeConfigFilePath = path.join(config.src, `_devMode.json`)
-
-  fs.writeFileSync(devModeConfigFilePath, JSON.stringify(devModeConfig), 'utf8')
-}
-
-const getConfig = (inputs, instance) => {
-  const config = {
     name:
       inputs.name || instance.state.name || `aws-lambda-component-${instance.stage}-${randomId}`,
     roleArn: inputs.roleArn || instance.state.roleArn,
     roleName: `lambda-role-${instance.stage}-${randomId}`,
     description: inputs.description || 'AWS Lambda Component',
-    memory: inputs.memory || 512,
+    memory: inputs.memory || 1028,
     timeout: inputs.timeout || 10,
     src: inputs.src || process.cwd(),
-    shims: inputs.shims || [],
     handler: inputs.handler || 'index.handler',
     runtime: 'nodejs12.x',
     env: inputs.env || {},
@@ -120,21 +60,14 @@ const getConfig = (inputs, instance) => {
     securityGroupIds: inputs.vpcConfig ? inputs.vpcConfig.securityGroupIds : false,
     subnetIds: inputs.vpcConfig ? inputs.vpcConfig.subnetIds : false
   }
-
-  // setup dev mode
-  // config.env.SERVERLESS_PLATFORM_STAGE = process.env.SERVERLESS_PLATFORM_STAGE
-  // config.env.SERVERLESS_ACCESS_KEY = instance.accessKey
-  // config.env.SERVERLESS_COMPONENT_INSTANCE_ID = `${instance.org}.${instance.app}.${instance.stage}.${instance.name}`
-  // config.env.USER_HANDLER = config.handler
-
-  writeDevModeConfigFile(config, instance)
-
-  config.handler = '_handler.handler'
-
-  return config
 }
 
-const createRole = async (iam, config) => {
+/**
+ * Create an AWS IAM Role
+ * @param {*} iam 
+ * @param {*} config 
+ */
+const createRole = async (iam, roleName) => {
   const assumeRolePolicyDocument = {
     Version: '2012-10-17',
     Statement: {
@@ -145,9 +78,10 @@ const createRole = async (iam, config) => {
       Action: 'sts:AssumeRole'
     }
   }
-  const res = await iam
+
+  let res = await iam
     .createRole({
-      RoleName: config.roleName,
+      RoleName: roleName,
       Path: '/',
       AssumeRolePolicyDocument: JSON.stringify(assumeRolePolicyDocument)
     })
@@ -155,28 +89,55 @@ const createRole = async (iam, config) => {
 
   await iam
     .attachRolePolicy({
-      RoleName: config.roleName,
+      RoleName: roleName,
       PolicyArn: 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
     })
     .promise()
 
-  return res.Role.Arn
+  return res
 }
 
+/**
+ * Get an AWS IAM Role
+ * @param {*} iam 
+ * @param {*} config 
+ */
+const getRole = async (iam, roleName) => {
+  let res
+  try {
+    res = await iam
+    .getRole({
+      RoleName: roleName
+    })
+    .promise()
+  } catch(error) {
+    if (error.code && error.code === 'NoSuchEntity') {
+      return
+    }
+    throw error
+  }
+  return res
+}
+
+/**
+ * Remove AWS IAM Role
+ * @param {*} iam 
+ * @param {*} config 
+ */
 const removeRole = async (iam, config) => {
-  if (!config.roleArn) {
+  if (!config.autoRoleArn) {
     return
   }
   try {
     await iam
       .detachRolePolicy({
-        RoleName: config.roleArn.split('/')[1], // extract role name from arn
+        RoleName: config.autoRoleArn.split('/')[1], // extract role name from arn
         PolicyArn: 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
       })
       .promise()
     await iam
       .deleteRole({
-        RoleName: config.roleArn.split('/')[1]
+        RoleName: config.autoRoleArn.split('/')[1]
       })
       .promise()
   } catch (error) {
@@ -186,66 +147,72 @@ const removeRole = async (iam, config) => {
   }
 }
 
-const createLambda = async (lambda, config) => {
+/**
+ * Create a new lambda function
+ * @param {*} lambda 
+ * @param {*} config 
+ */
+const createLambdaFunction = async (lambda, inputs) => {
   const params = {
-    FunctionName: config.name,
+    FunctionName: inputs.name,
     Code: {},
-    Description: config.description,
-    Handler: config.handler,
-    MemorySize: config.memory,
+    Description: inputs.description,
+    Handler: inputs.handler,
+    MemorySize: inputs.memory,
     Publish: true,
-    Role: config.roleArn,
-    Runtime: config.runtime,
-    Timeout: config.timeout,
-    Layers: config.layers,
+    Role: inputs.roleArn || inputs.autoRoleArn,
+    Runtime: inputs.runtime,
+    Timeout: inputs.timeout,
+    Layers: inputs.layers,
     Environment: {
-      Variables: config.env
+      Variables: inputs.env
     },
-    ...(config.securityGroupIds && {
+    ...(inputs.securityGroupIds && {
       VpcConfig: {
-        SecurityGroupIds: config.securityGroupIds,
-        SubnetIds: config.subnetIds
+        SecurityGroupIds: inputs.securityGroupIds,
+        SubnetIds: inputs.subnetIds
       }
     })
   }
 
-  if (config.layer && config.layer.arn) {
-    params.Layers = [config.layer.arn]
-  }
-
-  params.Code.ZipFile = await readFile(config.zipPath)
+  params.Code.ZipFile = await readFile(inputs.src)
 
   try {
     const res = await lambda.createFunction(params).promise()
     return { arn: res.FunctionArn, hash: res.CodeSha256 }
   } catch (e) {
     if (e.message.includes(`The role defined for the function cannot be assumed by Lambda`)) {
-      // we need to wait around 9 seconds after the role is craated before it can be assumed
-      await sleep(1000)
-      return createLambda(lambda, config)
+      // we need to wait after the role is created before it can be assumed
+      await sleep(5000)
+      return createLambdaFunction(lambda, inputs)
     }
     throw e
   }
 }
 
-const updateLambdaConfig = async (lambda, config) => {
+/**
+ * Update Lambda configuration
+ * @param {*} lambda 
+ * @param {*} config 
+ */
+const updateLambdaFunctionConfig = async (lambda, inputs) => {
   const functionConfigParams = {
-    FunctionName: config.name,
-    Description: config.description,
-    Handler: config.handler,
-    MemorySize: config.memory,
-    Role: config.roleArn,
-    Runtime: config.runtime,
-    Timeout: config.timeout,
-    Layers: config.layers,
+    FunctionName: inputs.name,
+    Description: inputs.description,
+    Handler: inputs.handler,
+    MemorySize: inputs.memory,
+    Role: inputs.roleArn || inputs.autoRoleArn,
+    Runtime: inputs.runtime,
+    Timeout: inputs.timeout,
+    Layers: inputs.layers,
     Environment: {
-      Variables: config.env
+      Variables: inputs.env
     },
-    ...(config.securityGroupIds
+    ...(inputs.securityGroupIds
       ? {
           VpcConfig: {
-            SecurityGroupIds: config.securityGroupIds,
-            SubnetIds: config.subnetIds
+            SecurityGroupIds: inputs.securityGroupIds,
+            SubnetIds: inputs.subnetIds
           }
         }
       : {
@@ -256,32 +223,37 @@ const updateLambdaConfig = async (lambda, config) => {
         })
   }
 
-  if (config.layer && config.layer.arn) {
-    functionConfigParams.Layers = [config.layer.arn]
-  }
-
   const res = await lambda.updateFunctionConfiguration(functionConfigParams).promise()
-
   return { arn: res.FunctionArn, hash: res.CodeSha256 }
 }
 
-const updateLambdaCode = async (lambda, config) => {
+/**
+ * Update Lambda function code
+ * @param {*} lambda 
+ * @param {*} config 
+ */
+const updateLambdaFunctionCode = async (lambda, inputs) => {
   const functionCodeParams = {
-    FunctionName: config.name,
+    FunctionName: inputs.name,
     Publish: true
   }
 
-  functionCodeParams.ZipFile = await readFile(config.zipPath)
+  functionCodeParams.ZipFile = await readFile(inputs.src)
   const res = await lambda.updateFunctionCode(functionCodeParams).promise()
 
   return res.FunctionArn
 }
 
-const getLambda = async ({ lambda, name }) => {
+/**
+ * Get Lambda Function
+ * @param {*} lambda 
+ * @param {*} functionName 
+ */
+const getLambdaFunction = async (lambda, functionName) => {
   try {
     const res = await lambda
       .getFunctionConfiguration({
-        FunctionName: name
+        FunctionName: functionName
       })
       .promise()
 
@@ -309,17 +281,26 @@ const getLambda = async ({ lambda, name }) => {
   }
 }
 
-const deleteLambda = async ({ lambda, name }) => {
+/**
+ * Delete Lambda function
+ * @param {*} param0 
+ */
+const deleteLambdaFunction = async (lambda, functionName) => {
   try {
-    const params = { FunctionName: name }
+    const params = { FunctionName: functionName }
     await lambda.deleteFunction(params).promise()
   } catch (error) {
+    console.log(error)
     if (error.code !== 'ResourceNotFoundException') {
       throw error
     }
   }
 }
 
+/**
+ * Get AWS IAM role policy
+ * @param {*} param0 
+ */
 const getPolicy = async ({ name, region, accountId }) => {
   return {
     Version: '2012-10-17',
@@ -338,7 +319,12 @@ const getPolicy = async ({ name, region, accountId }) => {
   }
 }
 
-const configChanged = (prevLambda, lambda) => {
+/**
+ * Detect if inputs have changed
+ * @param {*} prevLambda 
+ * @param {*} lambda 
+ */
+const inputsChanged = (prevLambda, lambda) => {
   const keys = [
     'description',
     'runtime',
@@ -356,57 +342,21 @@ const configChanged = (prevLambda, lambda) => {
   return not(equals(inputs, prevInputs))
 }
 
-const pack = async (code, shims = [], packDeps = true) => {
-  if (endsWith('.zip', code) || endsWith('.tar', code)) {
-    return path.resolve(code)
-  }
-
-  let exclude = []
-
-  if (!packDeps) {
-    exclude = ['node_modules/**']
-  }
-
-  const outputFilePath = path.join(
-    tmpdir(),
-    `${Math.random()
-      .toString(36)
-      .substring(6)}.zip`
-  )
-
-  const includeDirectory = path.join(__dirname, 'include')
-  const devModeIncludes = [
-    // dev-mode
-    path.join(includeDirectory, 'centra.js'),
-    path.join(includeDirectory, 'CentraRequest.js'),
-    path.join(includeDirectory, 'CentraResponse.js'),
-    path.join(includeDirectory, 'find-port.js'),
-    path.join(includeDirectory, 'get-port.js'),
-    path.join(includeDirectory, 'json-buffer.js'),
-    path.join(includeDirectory, 'phin.js'),
-    path.join(includeDirectory, 'sdk.js'),
-    path.join(includeDirectory, 'streamLog.js'),
-    path.join(includeDirectory, 'sync-rpc.js'),
-    path.join(includeDirectory, 'worker.js'),
-    path.join(includeDirectory, '_handler.js')
-  ]
-
-  return packDir(code, outputFilePath, shims.concat(devModeIncludes), exclude)
-}
-
+/**
+ * Exports
+ */
 module.exports = {
-  getConfig,
+  prepareInputs,
   getClients,
   createRole,
+  getRole,
   removeRole,
-  createLambda,
-  updateLambdaCode,
-  updateLambdaConfig,
-  getLambda,
-  deleteLambda,
+  createLambdaFunction,
+  updateLambdaFunctionCode,
+  updateLambdaFunctionConfig,
+  getLambdaFunction,
+  deleteLambdaFunction,
   getPolicy,
   getAccountId,
-  configChanged,
-  pack,
-  hashFile
+  inputsChanged,
 }
