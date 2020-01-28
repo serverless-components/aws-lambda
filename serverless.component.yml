@@ -1,10 +1,10 @@
-name: aws-lambda
-version: 0.2.0
-author: eahefnawy
+name: aws-lambda-layer
+version: 0.0.1
+author: ac360
 org: serverlessinc
-description: Deploys an AWS IAM Role
-keywords: aws, serverless, iam, permissions, identity and access management
-repo: https://github.com/serverless-components/aws-lambda
+description: Deploys an AWS Lambda Layer
+keywords: aws, serverless, lambda, layer, faas
+repo: https://github.com/serverless-components/aws-lambda-layer
 readme: ''
 license: MIT
 main: ./src
