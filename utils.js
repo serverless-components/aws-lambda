@@ -76,7 +76,8 @@ const createLambda = async ({
   zipPath,
   bucket,
   role,
-  layer
+  layer,
+  tags
 }) => {
   const params = {
     FunctionName: name,
@@ -88,6 +89,7 @@ const createLambda = async ({
     Role: role.arn,
     Runtime: runtime,
     Timeout: timeout,
+    Tags: tags, 
     Environment: {
       Variables: env
     }
@@ -119,7 +121,8 @@ const updateLambdaConfig = async ({
   env,
   description,
   role,
-  layer
+  layer,
+  tags
 }) => {
   const functionConfigParams = {
     FunctionName: name,
@@ -180,7 +183,8 @@ const getLambda = async ({ lambda, name }) => {
       memory: res.MemorySize,
       hash: res.CodeSha256,
       env: res.Environment ? res.Environment.Variables : {},
-      arn: res.FunctionArn
+      arn: res.FunctionArn,
+      tags: res.Tags
     }
   } catch (e) {
     if (e.code === 'ResourceNotFoundException') {
