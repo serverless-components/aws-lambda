@@ -69,10 +69,10 @@ myFunction:
       TABLE_NAME: my-table
     region: us-east-1
 
-	tags:
-	  environment: "Production"
-	  contact: "address@email.com"
-	  
+    tags:
+      environment: "Production"
+      contact: "address@email.com"
+
 
     # if you'd like to include any shims
     shims:
