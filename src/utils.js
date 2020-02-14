@@ -1,5 +1,4 @@
 const AWS = require('aws-sdk')
-const crypto = require('crypto')
 const { equals, not, pick } = require('ramda')
 const { readFile } = require('fs-extra')
 
