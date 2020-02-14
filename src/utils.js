@@ -4,13 +4,13 @@ const { readFile } = require('fs-extra')
 
 /**
  * Sleep
- * @param {*} wait 
+ * @param {*} wait
  */
 const sleep = async (wait) => new Promise((resolve) => setTimeout(() => resolve(), wait))
 
 /**
  * Get AWS Account ID
- * @param {*} aws 
+ * @param {*} aws
  */
 const getAccountId = async (aws) => {
   const STS = new aws.STS()
@@ -27,8 +27,8 @@ const randomId = Math.random()
 
 /**
  * Get AWS SDK Clients
- * @param {*} credentials 
- * @param {*} region 
+ * @param {*} credentials
+ * @param {*} region
  */
 const getClients = (credentials, region) => {
   const iam = new AWS.IAM({ credentials, region })
@@ -38,8 +38,8 @@ const getClients = (credentials, region) => {
 
 /**
  * Prepare inputs
- * @param {*} inputs 
- * @param {*} instance 
+ * @param {*} inputs
+ * @param {*} instance
  */
 const prepareInputs = (inputs, instance) => {
   return {
@@ -63,8 +63,8 @@ const prepareInputs = (inputs, instance) => {
 
 /**
  * Create an AWS IAM Role
- * @param {*} iam 
- * @param {*} config 
+ * @param {*} iam
+ * @param {*} config
  */
 const createRole = async (iam, roleName) => {
   const assumeRolePolicyDocument = {
@@ -78,7 +78,7 @@ const createRole = async (iam, roleName) => {
     }
   }
 
-  let res = await iam
+  const res = await iam
     .createRole({
       RoleName: roleName,
       Path: '/',
@@ -98,18 +98,18 @@ const createRole = async (iam, roleName) => {
 
 /**
  * Get an AWS IAM Role
- * @param {*} iam 
- * @param {*} config 
+ * @param {*} iam
+ * @param {*} config
  */
 const getRole = async (iam, roleName) => {
   let res
   try {
     res = await iam
-    .getRole({
-      RoleName: roleName
-    })
-    .promise()
-  } catch(error) {
+      .getRole({
+        RoleName: roleName
+      })
+      .promise()
+  } catch (error) {
     if (error.code && error.code === 'NoSuchEntity') {
       return
     }
@@ -120,8 +120,8 @@ const getRole = async (iam, roleName) => {
 
 /**
  * Remove AWS IAM Role
- * @param {*} iam 
- * @param {*} config 
+ * @param {*} iam
+ * @param {*} config
  */
 const removeRole = async (iam, autoRoleArn) => {
   try {
@@ -145,8 +145,8 @@ const removeRole = async (iam, autoRoleArn) => {
 
 /**
  * Create a new lambda function
- * @param {*} lambda 
- * @param {*} config 
+ * @param {*} lambda
+ * @param {*} config
  */
 const createLambdaFunction = async (lambda, inputs) => {
   const params = {
@@ -188,8 +188,8 @@ const createLambdaFunction = async (lambda, inputs) => {
 
 /**
  * Update Lambda configuration
- * @param {*} lambda 
- * @param {*} config 
+ * @param {*} lambda
+ * @param {*} config
  */
 const updateLambdaFunctionConfig = async (lambda, inputs) => {
   const functionConfigParams = {
@@ -225,8 +225,8 @@ const updateLambdaFunctionConfig = async (lambda, inputs) => {
 
 /**
  * Update Lambda function code
- * @param {*} lambda 
- * @param {*} config 
+ * @param {*} lambda
+ * @param {*} config
  */
 const updateLambdaFunctionCode = async (lambda, inputs) => {
   const functionCodeParams = {
@@ -242,8 +242,8 @@ const updateLambdaFunctionCode = async (lambda, inputs) => {
 
 /**
  * Get Lambda Function
- * @param {*} lambda 
- * @param {*} functionName 
+ * @param {*} lambda
+ * @param {*} functionName
  */
 const getLambdaFunction = async (lambda, functionName) => {
   try {
@@ -279,7 +279,7 @@ const getLambdaFunction = async (lambda, functionName) => {
 
 /**
  * Delete Lambda function
- * @param {*} param0 
+ * @param {*} param0
  */
 const deleteLambdaFunction = async (lambda, functionName) => {
   try {
@@ -295,7 +295,7 @@ const deleteLambdaFunction = async (lambda, functionName) => {
 
 /**
  * Get AWS IAM role policy
- * @param {*} param0 
+ * @param {*} param0
  */
 const getPolicy = async ({ name, region, accountId }) => {
   return {
@@ -317,8 +317,8 @@ const getPolicy = async ({ name, region, accountId }) => {
 
 /**
  * Detect if inputs have changed
- * @param {*} prevLambda 
- * @param {*} lambda 
+ * @param {*} prevLambda
+ * @param {*} lambda
  */
 const inputsChanged = (prevLambda, lambda) => {
   const keys = [
@@ -354,5 +354,5 @@ module.exports = {
   deleteLambdaFunction,
   getPolicy,
   getAccountId,
-  inputsChanged,
+  inputsChanged
 }

@@ -9,42 +9,50 @@ const {
   updateLambdaFunctionCode,
   updateLambdaFunctionConfig,
   getLambdaFunction,
-  deleteLambdaFunction,
+  deleteLambdaFunction
 } = require('./utils')
 
 class AwsLambda extends Component {
-
   /**
    * Deploy
-   * @param {*} inputs 
+   * @param {*} inputs
    */
   async deploy(inputs = {}) {
-
     // Check size of source code is less than 100MB
     if (this.size > 100000000) {
-      throw new Error('Your AWS Lambda source code size must be less than 100MB.  Try using Webpack, Parcel, AWS Lambda layers to reduce your code size.')
+      throw new Error(
+        'Your AWS Lambda source code size must be less than 100MB.  Try using Webpack, Parcel, AWS Lambda layers to reduce your code size.'
+      )
     }
 
     // Prepare inputs
     inputs = prepareInputs(inputs, this)
 
-    console.log(`Starting deployment of AWS Lambda "${inputs.name}" to the AWS region "${inputs.region}".`)
+    console.log(
+      `Starting deployment of AWS Lambda "${inputs.name}" to the AWS region "${inputs.region}".`
+    )
 
     // Get AWS clients
     const { lambda, iam } = getClients(this.credentials.aws, inputs.region)
 
     // Throw error on name change
     if (this.state.name && this.state.name !== inputs.name) {
-      throw new Error(`Changing the name from ${this.state.name} to ${inputs.name} will delete the AWS Lambda function.  Please remove it manually, change the name, then re-deploy.`)
+      throw new Error(
+        `Changing the name from ${this.state.name} to ${inputs.name} will delete the AWS Lambda function.  Please remove it manually, change the name, then re-deploy.`
+      )
     }
     // Throw error on region change
     if (this.state.region && this.state.region !== inputs.region) {
-      throw new Error(`Changing the region from ${this.state.region} to ${inputs.region} will delete the AWS Lambda function.  Please remove it manually, change the region, then re-deploy.`)
+      throw new Error(
+        `Changing the region from ${this.state.region} to ${inputs.region} will delete the AWS Lambda function.  Please remove it manually, change the region, then re-deploy.`
+      )
     }
 
     // If no AWS IAM Role role exists, auto-create a default role
     if (!inputs.roleArn) {
-      console.log( `No AWS IAM Role provided. Creating/Updating default IAM Role with basic execution rights.`)
+      console.log(
+        `No AWS IAM Role provided. Creating/Updating default IAM Role with basic execution rights.`
+      )
       const iamRoleName = `${inputs.name}-role`
       let res = await getRole(iam, iamRoleName)
       if (res) {
@@ -61,11 +69,13 @@ class AwsLambda extends Component {
       await removeRole(iam, this.state.autoRoleArn)
     }
 
-    console.log(`Checking if an AWS Lambda function has already been created with name: ${inputs.name}`)
+    console.log(
+      `Checking if an AWS Lambda function has already been created with name: ${inputs.name}`
+    )
     const prevLambda = await getLambdaFunction(lambda, inputs.name)
 
     // If debug, unzip, add ServerlessSDK, zip again
-    if (this.debug) {
+    if (this.dev) {
       const filesPath = await this.unzip(inputs.src, true) // Returns directory with unzipped files
       inputs.handler = this.addSDK(filesPath, inputs.handler) // Returns new handler
       inputs.src = await this.zip(filesPath, true) // Returns new zip
@@ -74,7 +84,9 @@ class AwsLambda extends Component {
     // Create or update Lambda function
     if (!prevLambda) {
       // Create a Lambda function
-      console.log(`Creating a new AWS Lambda function "${inputs.name}" in the "${inputs.region}" region.`)
+      console.log(
+        `Creating a new AWS Lambda function "${inputs.name}" in the "${inputs.region}" region.`
+      )
       const createResult = await createLambdaFunction(lambda, inputs)
       inputs.arn = createResult.arn
       inputs.hash = createResult.hash
@@ -82,7 +94,7 @@ class AwsLambda extends Component {
     } else {
       // Update a Lambda function
       inputs.arn = prevLambda.arn
-      console.log(`Uploading ${inputs.name} lambda code.`)
+      console.log(`Updatinng ${inputs.name} AWS lambda function.`)
       await updateLambdaFunctionCode(lambda, inputs)
       await updateLambdaFunctionConfig(lambda, inputs)
       console.log(`Successfully updated AWS Lambda function`)
@@ -103,7 +115,7 @@ class AwsLambda extends Component {
 
   /**
    * Remove
-   * @param {*} inputs 
+   * @param {*} inputs
    */
   async remove(inputs = {}) {
     if (!this.state.name) {
@@ -115,7 +127,9 @@ class AwsLambda extends Component {
     const { iam, lambda } = getClients(this.credentials.aws, region)
 
     if (this.state.autoRoleArn) {
-      console.log(`Removing role that was automatically created for this function with ARN: ${this.state.autoRoleArn}.`)
+      console.log(
+        `Removing role that was automatically created for this function with ARN: ${this.state.autoRoleArn}.`
+      )
       await removeRole(iam, this.state.autoRoleArn)
     }
 

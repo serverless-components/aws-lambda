@@ -1,5 +1,5 @@
 name: aws-lambda
-version: 1.0.0
+version: dev
 author: eahefnawy
 org: serverlessinc
 description: Deploys an AWS Lambda Function
