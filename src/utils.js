@@ -124,20 +124,17 @@ const getRole = async (iam, roleName) => {
  * @param {*} iam 
  * @param {*} config 
  */
-const removeRole = async (iam, config) => {
-  if (!config.autoRoleArn) {
-    return
-  }
+const removeRole = async (iam, autoRoleArn) => {
   try {
     await iam
       .detachRolePolicy({
-        RoleName: config.autoRoleArn.split('/')[1], // extract role name from arn
+        RoleName: autoRoleArn.split('/')[1], // extract role name from arn
         PolicyArn: 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
       })
       .promise()
     await iam
       .deleteRole({
-        RoleName: config.autoRoleArn.split('/')[1]
+        RoleName: autoRoleArn.split('/')[1]
       })
       .promise()
   } catch (error) {
@@ -184,7 +181,7 @@ const createLambdaFunction = async (lambda, inputs) => {
     if (e.message.includes(`The role defined for the function cannot be assumed by Lambda`)) {
       // we need to wait after the role is created before it can be assumed
       await sleep(5000)
-      return createLambdaFunction(lambda, inputs)
+      return await createLambdaFunction(lambda, inputs)
     }
     throw e
   }

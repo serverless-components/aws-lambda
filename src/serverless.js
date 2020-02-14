@@ -11,8 +11,6 @@ const {
   getLambdaFunction,
   deleteLambdaFunction,
 } = require('./utils')
-const fs = require('fs')
-const path = require('path')
 
 class AwsLambda extends Component {
 
@@ -21,6 +19,11 @@ class AwsLambda extends Component {
    * @param {*} inputs 
    */
   async deploy(inputs = {}) {
+
+    // Check size of source code is less than 100MB
+    if (this.size > 100000000) {
+      throw new Error('Your AWS Lambda source code size must be less than 100MB.  Try using Webpack, Parcel, AWS Lambda layers to reduce your code size.')
+    }
 
     // Prepare inputs
     inputs = prepareInputs(inputs, this)
@@ -39,7 +42,7 @@ class AwsLambda extends Component {
       throw new Error(`Changing the region from ${this.state.region} to ${inputs.region} will delete the AWS Lambda function.  Please remove it manually, change the region, then re-deploy.`)
     }
 
-    // If no AWS IAM Role role exists, create a default role
+    // If no AWS IAM Role role exists, auto-create a default role
     if (!inputs.roleArn) {
       console.log( `No AWS IAM Role provided. Creating/Updating default IAM Role with basic execution rights.`)
       const iamRoleName = `${inputs.name}-role`
@@ -50,6 +53,12 @@ class AwsLambda extends Component {
         res = await createRole(iam, iamRoleName)
       }
       inputs.autoRoleArn = this.state.autoRoleArn = res.Role.Arn
+    }
+
+    // If user has put in a custom AWS IAM Role and an auto-created role exists, delete the auto-created role
+    if (inputs.roleArn && this.state.autoRoleArn) {
+      console.log('Detected a new roleArn has been provided.  Removing the auto-created role...')
+      await removeRole(iam, this.state.autoRoleArn)
     }
 
     console.log(`Checking if an AWS Lambda function has already been created with name: ${inputs.name}`)
@@ -107,7 +116,7 @@ class AwsLambda extends Component {
 
     if (this.state.autoRoleArn) {
       console.log(`Removing role that was automatically created for this function with ARN: ${this.state.autoRoleArn}.`)
-      await removeRole(iam, this.state)
+      await removeRole(iam, this.state.autoRoleArn)
     }
 
     console.log(`Removing lambda ${name} from the ${region} region.`)
