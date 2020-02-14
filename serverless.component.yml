@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 name: aws-lambda
 version: 1.0.0
 author: eahefnawy
@@ -5,6 +6,15 @@ org: serverlessinc
 description: Deploys an AWS Lambda Function
 keywords: aws, serverless, lambda, function, faas
 repo: https://github.com/serverless-components/aws-lambda
+=======
+name: aws-lambda-layer
+version: 0.1.0
+author: ac360
+org: serverlessinc
+description: Deploys an AWS Lambda Layer
+keywords: aws, serverless, lambda, layer, faas
+repo: https://github.com/serverless-components/aws-lambda-layer
+>>>>>>> 9134896d89c1cad66fdd54b8284c055ff7aa9b53
 readme: ''
 license: MIT
 main: ./src

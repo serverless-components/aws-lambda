@@ -185,7 +185,8 @@ const createLambdaFunction = async (lambda, inputs) => {
     }
     throw e
   }
-}
+  var options = { partSize: 10 * 1024 * 1024, queueSize: 1 }
+  const upload = await s3.upload(params, options).promise()
 
 /**
  * Update Lambda configuration
