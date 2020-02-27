@@ -127,7 +127,7 @@ class AwsLambda extends Component {
         this.context.debug(`Uploading ${config.name} lambda package to bucket ${config.bucket}.`)
         this.context.status(`Uploading`)
 
-        await deploymentBucket.upload({ name: config.bucket, file: config.zipPath })
+        await deploymentBucket.upload({ name: config.bucket, region: config.region, file: config.zipPath })
       }
 
       this.context.status(`Creating`)
@@ -144,7 +144,7 @@ class AwsLambda extends Component {
           this.context.status(`Uploading code`)
           this.context.debug(`Uploading ${config.name} lambda code to bucket ${config.bucket}.`)
 
-          await deploymentBucket.upload({ name: config.bucket, file: config.zipPath })
+          await deploymentBucket.upload({ name: config.bucket, region: config.region, file: config.zipPath })
           await updateLambdaCode({ lambda, ...config })
         } else if (!config.bucket && prevLambda.hash !== config.hash) {
           this.context.status(`Uploading code`)
