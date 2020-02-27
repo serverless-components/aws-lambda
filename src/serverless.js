@@ -1,3 +1,5 @@
+const path = require('path')
+const { copySync } = require('fs-extra')
 const { Component } = require('@serverless/core')
 const {
   prepareInputs,
@@ -74,12 +76,15 @@ class AwsLambda extends Component {
     )
     const prevLambda = await getLambdaFunction(lambda, inputs.name)
 
-    // If debug, unzip, add ServerlessSDK, zip again
-    if (this.dev) {
-      const filesPath = await this.unzip(inputs.src, true) // Returns directory with unzipped files
-      inputs.handler = this.addSDK(filesPath, inputs.handler) // Returns new handler
-      inputs.src = await this.zip(filesPath, true) // Returns new zip
+    const filesPath = await this.unzip(inputs.src, true) // Returns directory with unzipped files
+
+    if (!inputs.src) {
+      copySync(path.join(__dirname, '_src'), filesPath)
+      inputs.handler = 'handler.handler'
     }
+
+    inputs.handler = this.addSDK(filesPath, inputs.handler) // Returns new handler
+    inputs.src = await this.zip(filesPath, true) // Returns new zip
 
     // Create or update Lambda function
     if (!prevLambda) {
