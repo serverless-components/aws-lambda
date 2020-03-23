@@ -98,12 +98,23 @@ stage: dev                       # (optional) serverless dashboard stage. defaul
 
 inputs:
   src: ./src                     # (optional) path to the source folder. default is a hello world function.
+  handler: index.handler         # (optional) lambda handler. default is handler.handler.
   memory: 512                    # (optional) lambda memory size.
   timeout: 10                    # (optional) lambda timeout.
   description: My Lambda.        # (optional) lambda description.
   env:                           # (optional) env vars.
     FOO: BAR
   roleArn: arn:aws:abc           # (optional) custom role arn.
+  layers:                        # (optional) lambda layers to add to this lambda function. default is an empty array.
+    - aws:layer:arn:1
+    - aws:layer:arn:2
+  vpnConfig:                     # (optional) lambda vpn configuration. default is null.
+    securityGroupIds:            # (optional) lambda vpn security group ids.
+      - xxx
+      - xxx
+    subnetIds:                   # (optional) lambda vpn subnet ids.
+      - xxx
+      - xxx
   region: us-east-2              # (optional) aws region to deploy to. default is us-east-1.
 ```
 
