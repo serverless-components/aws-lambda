@@ -1,12 +1,8 @@
 name: Integration Tests
 
-# triggering tests
-
 on:
-  push:
-    branches: [ cloud ]
-#   pull_request:
-#     branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 jobs:
   build:
