@@ -1,4 +1,4 @@
-[![Serverless Components](https://s3.amazonaws.com/assets.github.serverless/readme-serverless-components-3.gif)](http://serverless.com)
+[![Serverless Components](https://s3.amazonaws.com/public.assets.serverless.com/images/readme_serverless_components.gif)](http://serverless.com)
 
 <br/>
 
@@ -45,7 +45,7 @@ $ npm install -g serverless
 You can easily create a new `aws-lambda` instance just by using the following command and template url.
 
 ```
-$ serverless create --template-url https://github.com/serverless/components/tree/cloud/templates/aws-lambda
+$ serverless create --template-url https://github.com/serverless/components/tree/master/templates/aws-lambda
 $ cd aws-lambda
 ```
 
