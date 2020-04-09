@@ -31,6 +31,12 @@ const randomId = Math.random()
  * @param {*} region
  */
 const getClients = (credentials, region) => {
+  // this error message assumes that the user is running via the CLI though...
+  if (Object.keys(credentials).length === 0) {
+    const msg = `Credentials not found. Make sure you have a .env file in the cwd. - Docs: https://git.io/JvArp`
+    throw new Error(msg)
+  }
+
   const iam = new AWS.IAM({ credentials, region })
   const lambda = new AWS.Lambda({ credentials, region })
   return { iam, lambda }
