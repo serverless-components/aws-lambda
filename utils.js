@@ -16,7 +16,7 @@ const packDir = async (inputDirPath, outputFilePath, include = [], exclude = [],
     throw new Error('Please provide a valid format. Either a "zip" or a "tar"')
   }
 
-  const patterns = ['**']
+  const patterns = ['**/*']
 
   if (!isNil(exclude)) {
     exclude.forEach((excludedItem) => patterns.push(`!${excludedItem}`))
