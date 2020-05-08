@@ -142,11 +142,14 @@ class AwsLambda extends Component {
         `Removing role that was automatically created for this function with ARN: ${this.state.autoRoleArn}.`
       )
       await removeRole(iam, this.state.autoRoleArn)
+      this.state.autoRoleArn = undefined
     }
 
     console.log(`Removing lambda ${name} from the ${region} region.`)
     await deleteLambdaFunction(lambda, name)
     console.log(`Successfully removed lambda ${name} from the ${region} region.`)
+    this.state = {}
+    return {}
   }
 }
 
