@@ -119,7 +119,7 @@ Once you've chosen your configuration, run `serverless deploy` again (or simply 
 
 ### 5. Develop
 
-Now that you've got your basic lambda function up and running, it's time to develop that into a function that you could actual use. Instead of having to run `serverless deploy` everytime you make changes you wanna test, you could enable dev mode, which allows the CLI to watch for changes in your source directory as you develop, and deploy instantly on save.
+Now that you've got your basic lambda function up and running, it's time to develop that into a function that you could actual use. Instead of having to run `serverless deploy` everytime you make changes you want to test, you could enable dev mode, which allows the CLI to watch for changes in your source directory as you develop, and deploy instantly on save.
 
 To enable dev mode, just run the following command:
 
@@ -144,7 +144,7 @@ $ serverless info --debug
 ```
 ### 7. Remove
 
-If you wanna tear down your entire `aws-lambda` infrastructure that was created during deployment, just run the following command in the directory containing the `serverless.yml` file. 
+If you want to tear down your entire `aws-lambda` infrastructure that was created during deployment, just run the following command in the directory containing the `serverless.yml` file. 
 ```
 $ serverless remove
 ```
