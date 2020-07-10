@@ -4,14 +4,15 @@ const { Component } = require('@serverless/core')
 const {
   prepareInputs,
   getClients,
-  createRole,
-  getRole,
-  removeRole,
   createLambdaFunction,
   updateLambdaFunctionCode,
   updateLambdaFunctionConfig,
   getLambdaFunction,
-  deleteLambdaFunction
+  createOrUpdateFunctionRole,
+  createOrUpdateMetaRole,
+  deleteLambdaFunction,
+  removeAllRoles,
+  getMetrics,
 } = require('./utils')
 
 class AwsLambda extends Component {
@@ -41,7 +42,7 @@ class AwsLambda extends Component {
     )
 
     // Get AWS clients
-    const { lambda, iam } = getClients(this.credentials.aws, inputs.region)
+    const clients = getClients(this.credentials.aws, inputs.region)
 
     // Throw error on name change
     if (this.state.name && this.state.name !== inputs.name) {
@@ -56,31 +57,15 @@ class AwsLambda extends Component {
       )
     }
 
-    // If no AWS IAM Role role exists, auto-create a default role
-    if (!inputs.roleArn) {
-      console.log(
-        `No AWS IAM Role provided. Creating/Updating default IAM Role with basic execution rights.`
-      )
-      const iamRoleName = `${inputs.name}-role`
-      let res = await getRole(iam, iamRoleName)
-      if (res) {
-        inputs.autoRoleArn = this.state.autoRoleArn = res.Role.Arn
-      } else {
-        res = await createRole(iam, iamRoleName)
-      }
-      inputs.autoRoleArn = this.state.autoRoleArn = res.Role.Arn
-    }
-
-    // If user has put in a custom AWS IAM Role and an auto-created role exists, delete the auto-created role
-    if (inputs.roleArn && this.state.autoRoleArn) {
-      console.log('Detected a new roleArn has been provided.  Removing the auto-created role...')
-      await removeRole(iam, this.state.autoRoleArn)
-    }
+    await Promise.all([
+      createOrUpdateFunctionRole(this, inputs, clients),
+      createOrUpdateMetaRole(this, inputs, clients, this.accountId),
+    ]);
 
     console.log(
       `Checking if an AWS Lambda function has already been created with name: ${inputs.name}`
     )
-    const prevLambda = await getLambdaFunction(lambda, inputs.name)
+    const prevLambda = await getLambdaFunction(clients.lambda, inputs.name)
 
     const filesPath = await this.unzip(inputs.src, true) // Returns directory with unzipped files
 
@@ -98,16 +83,16 @@ class AwsLambda extends Component {
       console.log(
         `Creating a new AWS Lambda function "${inputs.name}" in the "${inputs.region}" region.`
       )
-      const createResult = await createLambdaFunction(lambda, inputs)
+      const createResult = await createLambdaFunction(this, clients.lambda, inputs)
       inputs.arn = createResult.arn
       inputs.hash = createResult.hash
       console.log(`Successfully created an AWS Lambda function`)
     } else {
       // Update a Lambda function
       inputs.arn = prevLambda.arn
-      console.log(`Updatinng ${inputs.name} AWS lambda function.`)
-      await updateLambdaFunctionCode(lambda, inputs)
-      await updateLambdaFunctionConfig(lambda, inputs)
+      console.log(`Updating ${inputs.name} AWS lambda function.`)
+      await updateLambdaFunctionCode(clients.lambda, inputs)
+      await updateLambdaFunctionConfig(this, clients.lambda, inputs)
       console.log(`Successfully updated AWS Lambda function`)
     }
 
@@ -129,27 +114,48 @@ class AwsLambda extends Component {
    * @param {*} inputs
    */
   async remove(inputs = {}) {
+
+    // this error message assumes that the user is running via the CLI though...
+    if (Object.keys(this.credentials.aws).length === 0) {
+      const msg = `Credentials not found. Make sure you have a .env file in the cwd. - Docs: https://git.io/JvArp`
+      throw new Error(msg)
+    }
+
     if (!this.state.name) {
       console.log(`No state found.  Function appears removed already.  Aborting.`)
       return
     }
 
-    const { name, region } = this.state
-    const { iam, lambda } = getClients(this.credentials.aws, region)
+    const clients = getClients(this.credentials.aws, this.state.region);
 
-    if (this.state.autoRoleArn) {
-      console.log(
-        `Removing role that was automatically created for this function with ARN: ${this.state.autoRoleArn}.`
-      )
-      await removeRole(iam, this.state.autoRoleArn)
-      this.state.autoRoleArn = undefined
-    }
+    await removeAllRoles(this, clients);
 
-    console.log(`Removing lambda ${name} from the ${region} region.`)
-    await deleteLambdaFunction(lambda, name)
-    console.log(`Successfully removed lambda ${name} from the ${region} region.`)
+    console.log(`Removing lambda ${this.state.name} from the ${this.state.region} region.`)
+    await deleteLambdaFunction(clients.lambda, this.state.name)
+    console.log(`Successfully removed lambda ${this.state.name} from the ${this.state.region} region.`)
+
     this.state = {}
     return {}
+  }
+
+  /**
+   * Metrics
+   */
+  async metrics(inputs = {}) {
+    // Validate
+    if (!inputs.rangeStart || !inputs.rangeEnd) {
+      throw new Error('rangeStart and rangeEnd are require inputs');
+    }
+
+    const result = await getMetrics(
+      this.state.region,
+      this.state.metaRoleArn,
+      this.state.name,
+      inputs.rangeStart,
+      inputs.rangeEnd
+    );
+
+    return result;
   }
 }
 

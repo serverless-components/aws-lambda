@@ -1,5 +1,5 @@
 name: aws-lambda
-version: 1.0.2
+version: 2.0.0
 author: eahefnawy
 org: serverlessinc
 description: Deploys an AWS Lambda Function
@@ -7,4 +7,4 @@ keywords: aws, serverless, lambda, function, faas
 repo: https://github.com/serverless-components/aws-lambda
 readme: ''
 license: MIT
-main: ./src
+src: ./src
