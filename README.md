@@ -49,7 +49,7 @@ $ serverless init aws-lambda-starter
 $ cd aws-lambda-starter
 ```
 
-This will also create an empty `.env` file. Open that `.env` file and can add in your AWS credentials:
+This will also create an empty `.env` file. Open that `.env` file and add in your AWS credentials:
 
 ```
 # .env
