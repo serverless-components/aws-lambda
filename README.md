@@ -92,7 +92,7 @@ inputs:
   description: My Lambda.        # (optional) lambda description.
   env:                           # (optional) env vars.
     FOO: BAR
-  roleArn: arn:aws:abc           # (optional) custom role arn.
+  roleName: plain-name           # (optional) custom role name.
   layers:                        # (optional) lambda layers to add to this lambda function. default is an empty array.
     - aws:layer:arn:1
     - aws:layer:arn:2
