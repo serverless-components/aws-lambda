@@ -1,11 +1,11 @@
-const https = require('https');
+const https = require('https')
 const AWS = require('@serverless/aws-sdk-extra')
 const { equals, not, pick } = require('ramda')
 const { readFile } = require('fs-extra')
 
 const agent = new https.Agent({
-  keepAlive: true,
-});
+  keepAlive: true
+})
 
 /**
  * Sleep
@@ -28,9 +28,9 @@ const randomId = Math.random()
 const getClients = (credentials = {}, region) => {
   AWS.config.update({
     httpOptions: {
-      agent,
-    },
-  });
+      agent
+    }
+  })
 
   const extras = new AWS.Extras({ credentials, region })
   const iam = new AWS.IAM({ credentials, region })
@@ -45,12 +45,12 @@ const getClients = (credentials = {}, region) => {
  * @param {*} instance
  */
 const prepareInputs = (inputs, instance) => {
-
   return {
-    name:
-      inputs.name || instance.state.name || `${instance.name}-${instance.stage}-${randomId}`,
+    name: inputs.name || instance.state.name || `${instance.name}-${instance.stage}-${randomId}`,
     roleName: inputs.roleName,
-    description: inputs.description || `An AWS Lambda function from the AWS Lambda Serverless Framework Component.  Name: "${instance.name}" Stage: "${instance.stage}"`,
+    description:
+      inputs.description ||
+      `An AWS Lambda function from the AWS Lambda Serverless Framework Component.  Name: "${instance.name}" Stage: "${instance.stage}"`,
     memory: inputs.memory || 1028,
     timeout: inputs.timeout || 10,
     src: inputs.src || null,
@@ -76,46 +76,44 @@ const createOrUpdateFunctionRole = async (instance, inputs, clients) => {
   if (inputs.roleName) {
     console.log(
       `Verifying the provided IAM Role with the name: ${inputs.roleName} in the inputs exists...`
-    );
+    )
 
-    const userRole = await clients.extras.getRole({ roleName: inputs.roleName });
-    const userRoleArn = userRole && userRole.Role && userRole.Role.Arn ? userRole.Role.Arn : null; // Don't save user provided role to state, always reference it as an input, in case it changes
+    const userRole = await clients.extras.getRole({ roleName: inputs.roleName })
+    const userRoleArn = userRole && userRole.Role && userRole.Role.Arn ? userRole.Role.Arn : null // Don't save user provided role to state, always reference it as an input, in case it changes
 
     // If user role exists, save it to state so it can be used for the create/update lambda logic later
     if (userRoleArn) {
-      console.log(`The provided IAM Role with the name: ${inputs.roleName} in the inputs exists.`);
-      instance.state.userRoleArn = userRoleArn;
+      console.log(`The provided IAM Role with the name: ${inputs.roleName} in the inputs exists.`)
+      instance.state.userRoleArn = userRoleArn
 
       // Save AWS Account ID by fetching the role ID
       // TODO: This may not work with cross-account roles.
-      instance.state.awsAccountId = instance.state.userRoleArn.split(':')[4];
+      instance.state.awsAccountId = instance.state.userRoleArn.split(':')[4]
 
       // Be sure to delete defaultLambdaRoleArn data, if it exists
       if (instance.state.defaultLambdaRoleArn) {
         delete instance.state.defaultLambdaRoleArn
       }
     } else {
-      throw new Error(
-        `The provided IAM Role with the name: ${inputs.roleName} could not be found.`
-      );
+      throw new Error(`The provided IAM Role with the name: ${inputs.roleName} could not be found.`)
     }
   } else {
     // Create a default role with basic Lambda permissions
 
-    const defaultLambdaRoleName = `${inputs.name}-lambda-role`;
+    const defaultLambdaRoleName = `${inputs.name}-lambda-role`
     console.log(
       `IAM Role not found.  Creating or updating a default role with the name: ${defaultLambdaRoleName}`
-    );
+    )
 
     const result = await clients.extras.deployRole({
       roleName: defaultLambdaRoleName,
       service: ['lambda.amazonaws.com'],
-      policy: 'arn:aws:iam::aws:policy/AWSLambdaFullAccess',
-    });
+      policy: 'arn:aws:iam::aws:policy/AWSLambdaFullAccess'
+    })
 
-    instance.state.defaultLambdaRoleName = defaultLambdaRoleName;
-    instance.state.defaultLambdaRoleArn = result.roleArn;
-    instance.state.awsAccountId = instance.state.defaultLambdaRoleArn.split(':')[4];
+    instance.state.defaultLambdaRoleName = defaultLambdaRoleName
+    instance.state.defaultLambdaRoleArn = result.roleArn
+    instance.state.awsAccountId = instance.state.defaultLambdaRoleArn.split(':')[4]
 
     // Be sure to delete userRole data, if it exists
     if (instance.state.userRoleArn) {
@@ -124,9 +122,9 @@ const createOrUpdateFunctionRole = async (instance, inputs, clients) => {
 
     console.log(
       `Default Lambda IAM Role created or updated with ARN ${instance.state.defaultLambdaRoleArn}`
-    );
+    )
   }
-};
+}
 
 /*
  * Ensure the Meta IAM Role exists
@@ -134,20 +132,20 @@ const createOrUpdateFunctionRole = async (instance, inputs, clients) => {
 const createOrUpdateMetaRole = async (instance, inputs, clients, serverlessAccountId) => {
   // Create or update Meta Role for monitoring and more, if option is enabled.  It's enabled by default.
   if (inputs.monitoring || typeof inputs.monitoring === 'undefined') {
-    console.log('Creating or updating the meta IAM Role...');
+    console.log('Creating or updating the meta IAM Role...')
 
-    const roleName = `${instance.name}-meta-role`;
+    const roleName = `${instance.name}-meta-role`
 
     const assumeRolePolicyDocument = {
       Version: '2012-10-17',
       Statement: {
         Effect: 'Allow',
         Principal: {
-          AWS: `arn:aws:iam::${serverlessAccountId}:root`, // Serverless's Components account
+          AWS: `arn:aws:iam::${serverlessAccountId}:root` // Serverless's Components account
         },
-        Action: 'sts:AssumeRole',
-      },
-    };
+        Action: 'sts:AssumeRole'
+      }
+    }
 
     // Create a policy that only can access APIGateway and Lambda metrics, logs from CloudWatch...
     const policy = {
@@ -164,8 +162,8 @@ const createOrUpdateMetaRole = async (instance, inputs, clients, serverlessAccou
             'logs:List*',
             'logs:Describe*',
             'logs:TestMetricFilter',
-            'logs:FilterLogEvents',
-          ],
+            'logs:FilterLogEvents'
+          ]
           // TODO: Finish this.  Haven't been able to get this to work.  Perhaps there is a missing service (Cloudfront?)
           // Condition: {
           //   StringEquals: {
@@ -175,25 +173,25 @@ const createOrUpdateMetaRole = async (instance, inputs, clients, serverlessAccou
           //     ]
           //   }
           // }
-        },
-      ],
-    };
+        }
+      ]
+    }
 
-    const roleDescription = `The Meta Role for the Serverless Framework App: ${instance.name} Stage: ${instance.stage}`;
+    const roleDescription = `The Meta Role for the Serverless Framework App: ${instance.name} Stage: ${instance.stage}`
 
     const result = await clients.extras.deployRole({
       roleName,
       roleDescription,
       policy,
-      assumeRolePolicyDocument,
-    });
+      assumeRolePolicyDocument
+    })
 
-    instance.state.metaRoleName = roleName;
-    instance.state.metaRoleArn = result.roleArn;
+    instance.state.metaRoleName = roleName
+    instance.state.metaRoleArn = result.roleArn
 
-    console.log(`Meta IAM Role created or updated with ARN ${instance.state.metaRoleArn}`);
+    console.log(`Meta IAM Role created or updated with ARN ${instance.state.metaRoleArn}`)
   }
-};
+}
 
 /**
  * Create a new lambda function
@@ -258,17 +256,17 @@ const updateLambdaFunctionConfig = async (instance, lambda, inputs) => {
     },
     ...(inputs.securityGroupIds
       ? {
-        VpcConfig: {
-          SecurityGroupIds: inputs.securityGroupIds,
-          SubnetIds: inputs.subnetIds
+          VpcConfig: {
+            SecurityGroupIds: inputs.securityGroupIds,
+            SubnetIds: inputs.subnetIds
+          }
         }
-      }
       : {
-        VpcConfig: {
-          SecurityGroupIds: [],
-          SubnetIds: []
-        }
-      })
+          VpcConfig: {
+            SecurityGroupIds: [],
+            SubnetIds: []
+          }
+        })
   }
 
   const res = await lambda.updateFunctionConfiguration(functionConfigParams).promise()
@@ -399,21 +397,20 @@ const inputsChanged = (prevLambda, lambda) => {
 const removeAllRoles = async (instance, clients) => {
   // Delete Function Role
   if (instance.state.defaultLambdaRoleName) {
-    console.log('Deleting the default Function Role...');
+    console.log('Deleting the default Function Role...')
     await clients.extras.removeRole({
-      roleName: instance.state.defaultLambdaRoleName,
-    });
+      roleName: instance.state.defaultLambdaRoleName
+    })
   }
 
   // Delete Meta Role
   if (instance.state.metaRoleName) {
-    console.log('Deleting the Meta Role...');
+    console.log('Deleting the Meta Role...')
     await clients.extras.removeRole({
-      roleName: instance.state.metaRoleName,
-    });
+      roleName: instance.state.metaRoleName
+    })
   }
-};
-
+}
 
 /**
  * Get metrics from cloudwatch
@@ -421,30 +418,24 @@ const removeAllRoles = async (instance, clients) => {
  * @param {*} rangeStart MUST be a moment() object
  * @param {*} rangeEnd MUST be a moment() object
  */
-const getMetrics = async (
-  region,
-  metaRoleArn,
-  functionName,
-  rangeStart,
-  rangeEnd
-) => {
+const getMetrics = async (region, metaRoleArn, functionName, rangeStart, rangeEnd) => {
   /**
    * Create AWS STS Token via the meta role that is deployed with the Express Component
    */
 
   // Assume Role
-  const assumeParams = {};
-  assumeParams.RoleSessionName = `session${Date.now()}`;
-  assumeParams.RoleArn = metaRoleArn;
-  assumeParams.DurationSeconds = 900;
+  const assumeParams = {}
+  assumeParams.RoleSessionName = `session${Date.now()}`
+  assumeParams.RoleArn = metaRoleArn
+  assumeParams.DurationSeconds = 900
 
   const sts = new AWS.STS({ region })
-  const resAssume = await sts.assumeRole(assumeParams).promise();
+  const resAssume = await sts.assumeRole(assumeParams).promise()
 
-  const roleCreds = {};
-  roleCreds.accessKeyId = resAssume.Credentials.AccessKeyId;
-  roleCreds.secretAccessKey = resAssume.Credentials.SecretAccessKey;
-  roleCreds.sessionToken = resAssume.Credentials.SessionToken;
+  const roleCreds = {}
+  roleCreds.accessKeyId = resAssume.Credentials.AccessKeyId
+  roleCreds.secretAccessKey = resAssume.Credentials.SecretAccessKey
+  roleCreds.sessionToken = resAssume.Credentials.SessionToken
 
   /**
    * Instantiate a new Extras instance w/ the temporary credentials
@@ -452,22 +443,22 @@ const getMetrics = async (
 
   const extras = new AWS.Extras({
     credentials: roleCreds,
-    region,
+    region
   })
 
   const resources = [
     {
       type: 'aws_lambda',
-      functionName,
-    },
-  ];
+      functionName
+    }
+  ]
 
   return await extras.getMetrics({
     rangeStart,
     rangeEnd,
-    resources,
-  });
-};
+    resources
+  })
+}
 
 /**
  * Exports
@@ -484,5 +475,5 @@ module.exports = {
   inputsChanged,
   deleteLambdaFunction,
   removeAllRoles,
-  getMetrics,
+  getMetrics
 }

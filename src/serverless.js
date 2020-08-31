@@ -12,7 +12,7 @@ const {
   createOrUpdateMetaRole,
   deleteLambdaFunction,
   removeAllRoles,
-  getMetrics,
+  getMetrics
 } = require('./utils')
 
 class AwsLambda extends Component {
@@ -59,8 +59,8 @@ class AwsLambda extends Component {
 
     await Promise.all([
       createOrUpdateFunctionRole(this, inputs, clients),
-      createOrUpdateMetaRole(this, inputs, clients, this.accountId),
-    ]);
+      createOrUpdateMetaRole(this, inputs, clients, this.accountId)
+    ])
 
     console.log(
       `Checking if an AWS Lambda function has already been created with name: ${inputs.name}`
@@ -114,7 +114,6 @@ class AwsLambda extends Component {
    * @param {*} inputs
    */
   async remove(inputs = {}) {
-
     // this error message assumes that the user is running via the CLI though...
     if (Object.keys(this.credentials.aws).length === 0) {
       const msg = `Credentials not found. Make sure you have a .env file in the cwd. - Docs: https://git.io/JvArp`
@@ -126,13 +125,15 @@ class AwsLambda extends Component {
       return
     }
 
-    const clients = getClients(this.credentials.aws, this.state.region);
+    const clients = getClients(this.credentials.aws, this.state.region)
 
-    await removeAllRoles(this, clients);
+    await removeAllRoles(this, clients)
 
     console.log(`Removing lambda ${this.state.name} from the ${this.state.region} region.`)
     await deleteLambdaFunction(clients.lambda, this.state.name)
-    console.log(`Successfully removed lambda ${this.state.name} from the ${this.state.region} region.`)
+    console.log(
+      `Successfully removed lambda ${this.state.name} from the ${this.state.region} region.`
+    )
 
     this.state = {}
     return {}
@@ -144,7 +145,7 @@ class AwsLambda extends Component {
   async metrics(inputs = {}) {
     // Validate
     if (!inputs.rangeStart || !inputs.rangeEnd) {
-      throw new Error('rangeStart and rangeEnd are require inputs');
+      throw new Error('rangeStart and rangeEnd are require inputs')
     }
 
     const result = await getMetrics(
@@ -153,9 +154,9 @@ class AwsLambda extends Component {
       this.state.name,
       inputs.rangeStart,
       inputs.rangeEnd
-    );
+    )
 
-    return result;
+    return result
   }
 }
 
