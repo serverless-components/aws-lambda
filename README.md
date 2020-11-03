@@ -86,7 +86,7 @@ stage: dev                       # (optional) serverless dashboard stage. defaul
 
 inputs:
   src: ./src                     # (optional) path to the source folder. default is a hello world function.
-  name: my-lambda                # (optional) the name of lambda function. default is the instance name above.
+  name: my-lambda                # (optional) the name of lambda function. default is an auto-generated name based on the instance name and stage above.
   handler: index.handler         # (optional) lambda handler. default is handler.handler.
   memory: 512                    # (optional) lambda memory size.
   timeout: 10                    # (optional) lambda timeout.
