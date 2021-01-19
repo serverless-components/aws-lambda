@@ -94,6 +94,7 @@ inputs:
   env:                           # (optional) env vars.
     FOO: BAR
   roleName: plain-name           # (optional) custom role name.
+  retry: 2                       # (optional) async retry configuration. default is 0.
   layers:                        # (optional) lambda layers to add to this lambda function. default is an empty array.
     - aws:layer:arn:1
     - aws:layer:arn:2
