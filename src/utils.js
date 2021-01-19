@@ -60,7 +60,8 @@ const prepareInputs = (inputs, instance) => {
     region: inputs.region || 'us-east-1',
     layers: inputs.layers || [],
     securityGroupIds: inputs.vpcConfig ? inputs.vpcConfig.securityGroupIds : false,
-    subnetIds: inputs.vpcConfig ? inputs.vpcConfig.subnetIds : false
+    subnetIds: inputs.vpcConfig ? inputs.vpcConfig.subnetIds : false,
+    retry: inputs.retry || 0
   }
 }
 
@@ -270,6 +271,15 @@ const updateLambdaFunctionConfig = async (instance, lambda, inputs) => {
   }
 
   const res = await lambda.updateFunctionConfiguration(functionConfigParams).promise()
+
+  // update retry config
+  await lambda
+    .putFunctionEventInvokeConfig({
+      FunctionName: inputs.name,
+      MaximumRetryAttempts: inputs.retry
+    })
+    .promise()
+
   return { arn: res.FunctionArn, hash: res.CodeSha256 }
 }
 
