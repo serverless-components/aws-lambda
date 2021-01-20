@@ -85,9 +85,9 @@ app: my-app                      # (optional) serverless dashboard app. default 
 stage: dev                       # (optional) serverless dashboard stage. default is dev.
 
 inputs:
-  src: ./src                     # (optional) path to the source folder. default is a hello world function.
+  src: ./src                     # (optional) path to the source folder, relative to the cwd. default is a hello world function.
   name: my-lambda                # (optional) the name of lambda function. default is an auto-generated name based on the instance name and stage above.
-  handler: index.handler         # (optional) lambda handler. default is handler.handler.
+  handler: index.handler         # (optional) lambda handler relative to the src input above. default is handler.handler.
   memory: 512                    # (optional) lambda memory size.
   timeout: 10                    # (optional) lambda timeout.
   description: My Lambda.        # (optional) lambda description.
@@ -107,6 +107,8 @@ inputs:
       - xxx
   region: us-east-2              # (optional) aws region to deploy to. default is us-east-1.
 ```
+
+**Note:** Unlike the `src` input, the `handler` input is relative to the `src` input, not to the current working directory.
 
 Once you've chosen your configuration, run `serverless deploy` again (or simply just `serverless`) to deploy your changes.
 
