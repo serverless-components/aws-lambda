@@ -109,7 +109,7 @@ const createOrUpdateFunctionRole = async (instance, inputs, clients) => {
     const result = await clients.extras.deployRole({
       roleName: defaultLambdaRoleName,
       service: ['lambda.amazonaws.com'],
-      policy: 'arn:aws:iam::aws:policy/AWSLambdaFullAccess'
+      policy: 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
     })
 
     instance.state.defaultLambdaRoleName = defaultLambdaRoleName
