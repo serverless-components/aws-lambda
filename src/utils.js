@@ -61,7 +61,9 @@ const prepareInputs = (inputs, instance) => {
     layers: inputs.layers || [],
     securityGroupIds: inputs.vpcConfig ? inputs.vpcConfig.securityGroupIds : false,
     subnetIds: inputs.vpcConfig ? inputs.vpcConfig.subnetIds : false,
-    retry: inputs.retry || 0
+    retry: inputs.retry || 0,
+    provisionedConcurrency: inputs.provisionedConcurrency,
+    aliasName: inputs.alias && inputs.alias.name || "provisioned"
   }
 }
 
@@ -226,7 +228,7 @@ const createLambdaFunction = async (instance, lambda, inputs) => {
 
   try {
     const res = await lambda.createFunction(params).promise()
-    return { arn: res.FunctionArn, hash: res.CodeSha256 }
+    return { arn: res.FunctionArn, hash: res.CodeSha256, version: res.Version }
   } catch (e) {
     if (e.message.includes(`The role defined for the function cannot be assumed by Lambda`)) {
       // we need to wait after the role is created before it can be assumed
@@ -298,6 +300,98 @@ const updateLambdaFunctionCode = async (lambda, inputs) => {
   const res = await lambda.updateFunctionCode(functionCodeParams).promise()
 
   return res.FunctionArn
+}
+
+/**
+ * Get Lambda Alias
+ * @param {String} functionName
+ * @param {String} aliasName
+ */
+const getLambdaAlias = async (functionName, aliasName) => {
+  try {
+    const res = await lambda.getAlias({
+      FunctionName: functionName,
+      Name: aliasName
+    }).promise();
+
+    return {
+      name: res.Name,
+      description: res.Description,
+      arn: res.AliasArn,
+      resourceId: res.ResourceId,
+      routingConfig: res.RoutingConfig
+    }
+  } catch (e) {
+    if (e.code === 'ResourceNotFoundException') {
+      return null
+    }
+    throw e
+  }
+}
+
+/**
+ * Create a lambda alias
+ * @param {*} lambda
+ * @param {*} inputs
+ */
+const createLambdaAlias = async (lambda, inputs) => {
+  const params = {
+    FunctionName: inputs.name,
+    FunctionVersion: inputs.version,
+    Name: inputs.aliasName
+  }
+
+  const res = await lambda.createAlias(params).promise()
+  return { name: res.Name, arn: res.AliasArn }
+}
+
+/**
+ * Update a lambda alias
+ * @param {*} lambda
+ * @param {*} inputs
+ */
+const updateLambdaAlias = async (lambda, inputs) => {
+  const params = {
+    FunctionName: inputs.name,
+    FunctionVersion: inputs.version,
+    Name: inputs.aliasName
+  }
+
+  const res = await lambda.updateAlias(params).promise()
+  return { name: res.Name, arn: res.AliasArn }
+}
+
+/**
+ * Delete lambda alias, assuming provisioned concurrency settings will be deleted along the way
+ * @param {*} lambda
+ * @param {*} inputs
+ */
+const deleteLambdaAlias = async (lambda, inputs) => {
+  const params = {
+    FunctionName: inputs.name,
+    Name: inputs.aliasName
+  }
+
+  const res = await lambda.deleteAlias(params).promise()
+}
+
+/**
+ * Update provisioned concurrency configurations
+ * @param {*} lambda
+ * @param {*} inputs
+ */
+const updateProvisionedConcurrencyConfig = async (lambda, inputs) => {
+  const params = {
+    FunctionName: inputs.name,
+    ProvisionedConcurrencyExecutions: inputs.provisionedConcurrency,
+    Qualifier: inputs.aliasName
+  }
+
+  const res = await lambda.putProvisionedConcurrencyConfig(params).promise()
+  return {
+    allocated: res.AllocatedProvisionedConcurrentExecutions,
+    requested: res.RequestedProvisionedConcurrentExecutions
+  }
 }
 
 /**
@@ -391,7 +485,8 @@ const inputsChanged = (prevLambda, lambda) => {
     'env',
     'hash',
     'securityGroupIds',
-    'subnetIds'
+    'subnetIds',
+    'provisionedConcurrency'
   ]
   const inputs = pick(keys, lambda)
   const prevInputs = pick(keys, prevLambda)
@@ -482,6 +577,11 @@ module.exports = {
   updateLambdaFunctionCode,
   updateLambdaFunctionConfig,
   getLambdaFunction,
+  getLambdaAlias,
+  createLambdaAlias,
+  updateLambdaAlias,
+  deleteLambdaAlias,
+  updateProvisionedConcurrencyConfig,
   inputsChanged,
   deleteLambdaFunction,
   removeAllRoles,
