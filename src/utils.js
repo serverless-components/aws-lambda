@@ -304,8 +304,8 @@ const updateLambdaFunctionCode = async (lambda, inputs) => {
 
 /**
  * Get Lambda Alias
- * @param {String} functionName
- * @param {String} aliasName
+ * @param {*} lambda
+ * @param {*} inputs
  */
 const getLambdaAlias = async (lambda, inputs) => {
   try {
@@ -332,7 +332,7 @@ const getLambdaAlias = async (lambda, inputs) => {
 }
 
 /**
- * Create a lambda alias
+ * Create a Lambda Alias
  * @param {*} lambda
  * @param {*} inputs
  */
@@ -348,7 +348,7 @@ const createLambdaAlias = async (lambda, inputs) => {
 }
 
 /**
- * Update a lambda alias
+ * Update a Lambda Alias
  * @param {*} lambda
  * @param {*} inputs
  */
@@ -364,7 +364,7 @@ const updateLambdaAlias = async (lambda, inputs) => {
 }
 
 /**
- * Delete lambda alias, assuming provisioned concurrency settings will be deleted along the way
+ * Delete Lambda Alias, provisioned concurrency settings will be deleted together
  * @param {*} lambda
  * @param {*} inputs
  */
