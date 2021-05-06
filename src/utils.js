@@ -63,7 +63,7 @@ const prepareInputs = (inputs, instance) => {
     subnetIds: inputs.vpcConfig ? inputs.vpcConfig.subnetIds : false,
     retry: inputs.retry || 0,
     provisionedConcurrency: inputs.provisionedConcurrency,
-    aliasName: inputs.alias && inputs.alias.name || "provisioned"
+    aliasName: (inputs.alias && inputs.alias.name) || 'provisioned'
   }
 }
 
@@ -299,7 +299,7 @@ const updateLambdaFunctionCode = async (lambda, inputs) => {
   functionCodeParams.ZipFile = await readFile(inputs.src)
   const res = await lambda.updateFunctionCode(functionCodeParams).promise()
 
-  return res.FunctionArn
+  return { arn: res.FunctionArn, hash: res.CodeSha256, version: res.Version }
 }
 
 /**
@@ -307,12 +307,14 @@ const updateLambdaFunctionCode = async (lambda, inputs) => {
  * @param {String} functionName
  * @param {String} aliasName
  */
-const getLambdaAlias = async (functionName, aliasName) => {
+const getLambdaAlias = async (lambda, inputs) => {
   try {
-    const res = await lambda.getAlias({
-      FunctionName: functionName,
-      Name: aliasName
-    }).promise();
+    const res = await lambda
+      .getAlias({
+        FunctionName: inputs.name,
+        Name: inputs.aliasName
+      })
+      .promise()
 
     return {
       name: res.Name,
@@ -383,7 +385,7 @@ const deleteLambdaAlias = async (lambda, inputs) => {
 const updateProvisionedConcurrencyConfig = async (lambda, inputs) => {
   const params = {
     FunctionName: inputs.name,
-    ProvisionedConcurrencyExecutions: inputs.provisionedConcurrency,
+    ProvisionedConcurrentExecutions: inputs.provisionedConcurrency,
     Qualifier: inputs.aliasName
   }
 
