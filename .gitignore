@@ -11,6 +11,7 @@ testProjects/*/package-lock.json
 testProjects/*/yarn.lock
 .serverlessUnzipped
 node_modules
+node_modules.nosync
 .vscode/
 .eslintcache
 dist
