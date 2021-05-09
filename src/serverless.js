@@ -8,6 +8,11 @@ const {
   updateLambdaFunctionCode,
   updateLambdaFunctionConfig,
   getLambdaFunction,
+  getLambdaAlias,
+  createLambdaAlias,
+  updateLambdaAlias,
+  deleteLambdaAlias,
+  updateProvisionedConcurrencyConfig,
   createOrUpdateFunctionRole,
   createOrUpdateMetaRole,
   deleteLambdaFunction,
@@ -80,14 +85,40 @@ class AwsLambda extends Component {
       const createResult = await createLambdaFunction(this, clients.lambda, inputs)
       inputs.arn = createResult.arn
       inputs.hash = createResult.hash
+      inputs.version = createResult.version
       console.log(`Successfully created an AWS Lambda function`)
     } else {
       // Update a Lambda function
       inputs.arn = prevLambda.arn
       console.log(`Updating ${inputs.name} AWS lambda function.`)
-      await updateLambdaFunctionCode(clients.lambda, inputs)
+      const updateResult = await updateLambdaFunctionCode(clients.lambda, inputs)
+      inputs.version = updateResult.version
       await updateLambdaFunctionConfig(this, clients.lambda, inputs)
       console.log(`Successfully updated AWS Lambda function`)
+    }
+
+    const prevAlias = await getLambdaAlias(clients.lambda, inputs)
+
+    // Maintain Alias and its provisionedConcurrency
+    if (inputs.provisionedConcurrency) {
+      if (!prevAlias) {
+        // Create alias and provisioned concurrency settings
+        console.log(`Creating alias "${inputs.aliasName}" for version ${inputs.version}`)
+        await createLambdaAlias(clients.lambda, inputs)
+        await updateProvisionedConcurrencyConfig(clients.lambda, inputs)
+        console.log(`Successfully created alias`)
+      } else {
+        // Update alias to point to the correct version
+        console.log(`Updating alias "${inputs.aliasName}" for version ${inputs.version}`)
+        // Must go before alias, otherwise AWS will block until existing instances are shutdown
+        await updateProvisionedConcurrencyConfig(clients.lambda, inputs)
+        await updateLambdaAlias(clients.lambda, inputs)
+        console.log(`Successfully updated alias`)
+      }
+    } else if (prevAlias) {
+      console.log(`Deleting provisioned concurrency configuration`)
+      await deleteLambdaAlias(clients.lambda, inputs)
+      console.log(`Successfully deleted provisioned concurrency configuration`)
     }
 
     // Update state
@@ -98,6 +129,8 @@ class AwsLambda extends Component {
     return {
       name: inputs.name,
       arn: inputs.arn,
+      version: inputs.version,
+      provisionedConcurrency: inputs.provisionedConcurrency,
       securityGroupIds: inputs.securityGroupIds,
       subnetIds: inputs.subnetIds
     }

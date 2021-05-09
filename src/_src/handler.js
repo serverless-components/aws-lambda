@@ -1,3 +1,1 @@
-module.exports.handler = async () => {
-  return 'Hello Serverless'
-}
+module.exports.handler = () => 'Hello Serverless'
