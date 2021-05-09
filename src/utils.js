@@ -62,7 +62,7 @@ const prepareInputs = (inputs, instance) => {
     securityGroupIds: inputs.vpcConfig ? inputs.vpcConfig.securityGroupIds : false,
     subnetIds: inputs.vpcConfig ? inputs.vpcConfig.subnetIds : false,
     retry: inputs.retry || 0,
-    provisionedConcurrency: inputs.provisionedConcurrency,
+    provisionedConcurrency: inputs.provisionedConcurrency || 0,
     aliasName: (inputs.alias && inputs.alias.name) || 'provisioned'
   }
 }
