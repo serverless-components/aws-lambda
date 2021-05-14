@@ -55,7 +55,7 @@ const prepareInputs = (inputs, instance) => {
     timeout: inputs.timeout || 10,
     src: inputs.src || null,
     handler: inputs.handler || 'handler.handler',
-    runtime: inputs.runtime || 'nodejs12.x',
+    runtime: inputs.runtime || 'nodejs14.x',
     env: inputs.env || {},
     region: inputs.region || 'us-east-1',
     layers: inputs.layers || [],
