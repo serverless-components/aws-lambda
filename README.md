@@ -85,6 +85,7 @@ inputs:
   memory: 512                    # (optional) lambda memory size.
   timeout: 10                    # (optional) lambda timeout.
   description: My Lambda.        # (optional) lambda description.
+  runtime: 'nodejs14.x'          # (optional) lambda runtime
   env:                           # (optional) env vars.
     FOO: BAR
   roleName: plain-name           # (optional) custom role name.
