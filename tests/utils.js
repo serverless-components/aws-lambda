@@ -29,7 +29,7 @@ const getCredentials = () => {
   }
 
   if (!credentials.aws.accessKeyId || !credentials.aws.accessKeyId) {
-    throw new Error('Unable to run tests. AWS credentials not found in the envionrment')
+    throw new Error('Unable to run tests. AWS credentials not found in the environment')
   }
 
   return credentials
@@ -46,6 +46,11 @@ const getServerlessSdk = (orgName) => {
       orgName
     }
   })
+
+  if (!sdk.accessKey) {
+    throw new Error('Unable to run tests. Serverless access key not found in the environment')
+  }
+
   return sdk
 }
 
