@@ -17,6 +17,7 @@ dist
 .idea
 build/
 .env*
+!.env.example
 env.js
 package-lock.json
 test
