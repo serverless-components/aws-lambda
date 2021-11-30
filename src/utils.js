@@ -270,7 +270,16 @@ const updateLambdaFunctionConfig = async (instance, lambda, inputs) => {
         })
   }
 
-  const res = await lambda.updateFunctionConfiguration(functionConfigParams).promise()
+  let res
+  try {
+    res = await lambda.updateFunctionConfiguration(functionConfigParams).promise()
+  } catch (e) {
+    if (e.code === 'ResourceConflictException') {
+      await sleep(2000)
+      return await updateLambdaFunctionConfig(instance, lambda, inputs)
+    }
+    throw e
+  }
 
   // update retry config
   await lambda
