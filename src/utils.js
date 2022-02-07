@@ -79,7 +79,9 @@ const createOrUpdateFunctionRole = async (instance, inputs, clients) => {
       `Verifying the provided IAM Role with the name: ${inputs.roleName} in the inputs exists...`
     )
 
-    const userRole = await clients.extras.getRole({ roleName: inputs.roleName })
+    const userRole = await clients.extras.getRole({
+      roleName: inputs.roleName
+    })
     const userRoleArn = userRole && userRole.Role && userRole.Role.Arn ? userRole.Role.Arn : null // Don't save user provided role to state, always reference it as an input, in case it changes
 
     // If user role exists, save it to state so it can be used for the create/update lambda logic later
@@ -485,6 +487,7 @@ const getMetrics = async (region, metaRoleArn, functionName, rangeStart, rangeEn
 module.exports = {
   prepareInputs,
   getClients,
+  getPolicy,
   createOrUpdateFunctionRole,
   createOrUpdateMetaRole,
   createLambdaFunction,
